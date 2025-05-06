@@ -1,15 +1,14 @@
-import os
 import asyncio
 
 import logfire
-from dotenv import load_dotenv
 from agents import Agent, Runner
 from agents.mcp import MCPServerStdio
+from dotenv import load_dotenv
 
 load_dotenv()
 
 # Configure Logfire
-logfire.configure(send_to_logfire="if-token-present")
+logfire.configure(send_to_logfire="if-token-present", service_name="oai-basic-mcp")
 logfire.instrument_mcp()
 logfire.instrument_openai_agents()
 

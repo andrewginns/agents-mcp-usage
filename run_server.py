@@ -23,7 +23,7 @@ def get_current_time() -> str:
 # Add a dynamic greeting resource
 @mcp.resource("greeting://{name}")
 def get_greeting(name: str) -> str:
-    """Get a personalized greeting"""
+    """Get a personalised greeting"""
     return f"Hello, {name}!"
 
 

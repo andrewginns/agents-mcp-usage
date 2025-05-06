@@ -9,7 +9,7 @@ from pydantic_ai.mcp import MCPServerStdio
 load_dotenv()
 
 # Configure logging to logfire if LOGFIRE_TOKEN is set in environment
-logfire.configure(send_to_logfire="if-token-present")
+logfire.configure(send_to_logfire="if-token-present", service_name="pydantic-basic-mcp")
 logfire.instrument_mcp()
 logfire.instrument_pydantic_ai()
 

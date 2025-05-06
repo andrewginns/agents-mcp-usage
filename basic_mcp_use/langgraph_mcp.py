@@ -12,7 +12,9 @@ from mcp.client.stdio import stdio_client
 load_dotenv()
 
 # Configure logging if LOGFIRE_TOKEN is set
-logfire.configure(send_to_logfire="if-token-present")
+logfire.configure(
+    send_to_logfire="if-token-present", service_name="langgraph-basic-mcp"
+)
 logfire.instrument_mcp()
 
 
