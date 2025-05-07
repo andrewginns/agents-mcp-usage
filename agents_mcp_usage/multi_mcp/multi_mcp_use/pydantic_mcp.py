@@ -6,7 +6,7 @@ from pydantic_ai import Agent
 from pydantic_ai.mcp import MCPServerStdio
 from pydantic_ai.usage import UsageLimits
 
-from mermaid_diagrams import invalid_mermaid_diagram, valid_mermaid_diagram
+from multi_mcp.mermaid_diagrams import invalid_mermaid_diagram, valid_mermaid_diagram
 
 load_dotenv()
 
