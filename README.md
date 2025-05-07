@@ -1,6 +1,6 @@
 # Model Context Protocol (MCP) Agent Frameworks Demo
 
-This repository demonstrates the usage of a simple Model Context Protocol (MCP) server with several frameworks:
+This repository demonstrates the usage of Model Context Protocol (MCP) servers with several frameworks:
 - Google Agent Development Toolkit (ADK)
 - LangGraph Agents
 - OpenAI Agents
@@ -17,7 +17,7 @@ Tracing is done through Pydantic Logfire.
 
 `cp .env.example .env`
 - Add `GEMINI_API_KEY` and/or `OPENAI_API_KEY`
-  - Individual scripts can be adjusted to use models from any provider supported by the specifi framework
+  - Individual scripts can be adjusted to use models from any provider supported by the specific framework
     - By default only [basic_mcp_use/oai-agent_mcp.py](basic_mcp_use/oai-agent_mcp.py) requires `OPENAI_API_KEY`
     - All other scripts require `GEMINI_API_KEY` (Free tier key can be created at https://aistudio.google.com/apikey)
 - [Optional] Add `LOGFIRE_TOKEN` to visualise evaluations in Logfire web ui
@@ -33,83 +33,32 @@ Check console or Logfire for output
 
 This project aims to teach:
 1. How to use MCP with multiple LLM Agent frameworks
-    - Example MCP tools for adding numbers, getting current time
+    - Single MCP server usage and Multi-MCP server usage
 2. How to see traces LLM Agents with Logfire
+3. How to evaluate LLMs with PydanticAI evals
 
 ![Logfire UI](docs/images/logfire_ui.png)
 
-## MCP Architecture
-
-```mermaid
-graph LR
-    User((User)) --> |"Run script<br>(e.g., pydantic_mcp.py)"| Agent
-
-    subgraph "Agent Frameworks"
-        Agent[Agent]
-        ADK["Google ADK<br>(adk_mcp.py)"]
-        LG["LangGraph<br>(langgraph_mcp.py)"]
-        OAI["OpenAI Agents<br>(oai-agent_mcp.py)"]
-        PYD["Pydantic-AI<br>(pydantic_mcp.py)"]
-        
-        Agent --> ADK
-        Agent --> LG
-        Agent --> OAI
-        Agent --> PYD
-    end
-
-    subgraph "MCP Server"
-        MCP["Model Context Protocol Server<br>(run_server.py)"]
-        Tools["Tools<br>- add(a, b)<br>- get_current_time()"]
-        Resources["Resources<br>- greeting://{name}"]
-        MCP --- Tools
-        MCP --- Resources
-    end
-
-    subgraph "LLM Providers"
-        OAI_LLM["OpenAI Models"]
-        GEM["Google Gemini Models"]
-        OTHER["Other LLM Providers..."]
-    end
-    
-    Logfire[("Logfire<br>Tracing")]
-    
-    ADK --> MCP
-    LG --> MCP
-    OAI --> MCP
-    PYD --> MCP
-    
-    MCP --> OAI_LLM
-    MCP --> GEM
-    MCP --> OTHER
-    
-    ADK --> Logfire
-    LG --> Logfire
-    OAI --> Logfire
-    PYD --> Logfire
-    
-    LLM_Response[("Response")] --> User
-    OAI_LLM --> LLM_Response
-    GEM --> LLM_Response
-    OTHER --> LLM_Response
-
-    style MCP fill:#f9f,stroke:#333,stroke-width:2px
-    style User fill:#bbf,stroke:#338,stroke-width:2px
-    style Logfire fill:#bfb,stroke:#383,stroke-width:2px
-    style LLM_Response fill:#fbb,stroke:#833,stroke-width:2px
-```
-
-The diagram illustrates how MCP serves as a standardised interface between different agent frameworks and LLM providers.The flow shows how users interact with the system by running a specific agent script, which then leverages MCP to communicate with LLM providers, while Logfire provides tracing and observability.
-
 ## Repository Structure
 
-- **basic_mcp_use/** - Contains basic examples of MCP usage:
+- **agents_mcp_usage/basic_mcp/basic_mcp_use/** - Contains basic examples of single MCP usage:
   - `adk_mcp.py` - Example of using MCP with Google's Agent Development Kit (ADK)
   - `langgraph_mcp.py` - Example of using MCP with LangGraph
-  - `oai-agent_mcp.py` - Examoke of using MCP with OpenAI Agents
+  - `oai-agent_mcp.py` - Example of using MCP with OpenAI Agents
   - `pydantic_mcp.py` - Example of using MCP with Pydantic-AI
 
-- `run_server.py` - Simple MCP server that runs locally implemented in Python
+- **agents_mcp_usage/basic_mcp/eval_basic_mcp_use/** - Contains evaluation examples for single MCP usage:
+  - `evals_adk_mcp.py` - Evaluation of MCP with Google's ADK
+  - `evals_langchain_mcp.py` - Evaluation of MCP with LangGraph
+  - `evals_pydantic_mcp.py` - Evaluation of MCP with Pydantic-AI
 
+- **agents_mcp_usage/multi_mcp/** - Contains advanced examples of multi-MCP usage:
+  - `multi_mcp_use/pydantic_mcp.py` - Example of using multiple MCP servers with Pydantic-AI
+  - `eval_multi_mcp/evals_pydantic_mcp.py` - Example of evaluating the use of multiple MCP servers with Pydantic-AI
+  - `mermaid_diagrams.py` - Generates Mermaid diagrams for visualizing MCP architecture
+
+- **Demo Python MCP Server**
+  - `run_server.py` - Simple MCP server that runs locally, implemented in Python
 
 ## What is MCP?
 
@@ -128,7 +77,7 @@ A key advantage highlighted is flexibility; MCP allows developers to more easily
 1. Clone this repository
 2. Install required packages:
    ```bash
-   uv sync
+   make install
    ```
 3. Set up your environment variables in a `.env` file:
    ```
