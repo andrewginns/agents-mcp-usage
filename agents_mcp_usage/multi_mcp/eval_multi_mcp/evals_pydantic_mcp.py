@@ -244,7 +244,7 @@ def create_evaluation_dataset(judge_model: str = DEFAULT_MODEL):
             UsedBothMCPTools(),
             MermaidDiagramValid(),
             LLMJudge(
-                rubric="The response only contains a mermaid diagram, no other text.",
+                rubric="The response only contains a mermaid diagram inside the response JSON, no other text.",
                 include_input=False,
                 model=judge_model,
             ),
