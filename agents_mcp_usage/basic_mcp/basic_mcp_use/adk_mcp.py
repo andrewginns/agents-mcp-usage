@@ -12,7 +12,7 @@ from google.genai import types
 load_dotenv()
 
 # Set API key for Google AI API from environment variable
-os.environ["GOOGLE_API_KEY"] = os.getenv("GEMINI_API_KEY")
+os.environ["GOOGLE_API_KEY"] = os.getenv("GEMINI_API_KEY", "")
 
 # Configure logging if LOGFIRE_TOKEN is set
 logfire.configure(send_to_logfire="if-token-present", service_name="adk-basic-mcp")
