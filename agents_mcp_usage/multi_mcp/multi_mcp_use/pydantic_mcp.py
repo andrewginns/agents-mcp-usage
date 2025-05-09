@@ -6,7 +6,7 @@ from pydantic_ai import Agent
 from pydantic_ai.mcp import MCPServerStdio
 from pydantic_ai.usage import UsageLimits
 
-from agents_mcp_usage.multi_mcp.mermaid_diagrams import invalid_mermaid_diagram
+from agents_mcp_usage.multi_mcp.mermaid_diagrams import invalid_mermaid_diagram_easy
 
 load_dotenv()
 
@@ -57,12 +57,7 @@ async def main(query: str = "Hi!", request_limit: int = 5) -> None:
     # print(result.output)
     return result
 
-    # Evals
-    # 1. Did it use both MCP tools?
-    # 2. Is the mermaid diagram valid?
-    # 3. Is the mermaid diagram close to the ground truth?
-
 
 if __name__ == "__main__":
-    query = f"Add the current time and fix the mermaid diagram syntax using the validator: {invalid_mermaid_diagram}. Return only the fixed mermaid diagram between backticks."
+    query = f"Add the current time and fix the mermaid diagram syntax using the validator: {invalid_mermaid_diagram_easy}. Return only the fixed mermaid diagram between backticks."
     asyncio.run(main(query))
