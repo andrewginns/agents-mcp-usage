@@ -1,12 +1,17 @@
 # Model Context Protocol (MCP) Agent Frameworks Demo
 
-This repository demonstrates the usage of Model Context Protocol (MCP) servers with several frameworks:
+This repository demonstrates LLM Agents using tools from Model Context Protocol (MCP) servers with several frameworks:
 - Google Agent Development Kit (ADK)
 - LangGraph Agents
 - OpenAI Agents
 - Pydantic-AI Agents
 
-Included MCP Server is based on [MCP Python SDK Quickstart](https://github.com/modelcontextprotocol/python-sdk/blob/b4c7db6a50a5c88bae1db5c1f7fba44d16eebc6e/README.md?plain=1#L104)
+Both single and multiple MCP server examples are demonstrated
+- [Agent with a single MCP server](agents_mcp_usage/basic_mcp/README.md)
+- [Agent with multiple MCP servers](agents_mcp_usage/multi_mcp/README.md)
+  - Also includes Agent evaluations
+
+The repo also includes a Python MCP Server [`run_server.py`](run_server.py) based on [MCP Python SDK Quickstart](https://github.com/modelcontextprotocol/python-sdk/blob/b4c7db6a50a5c88bae1db5c1f7fba44d16eebc6e/README.md?plain=1#L104)
 - Modified to include a datetime tool and run as a server invoked by Agents
 
 Tracing is done through Pydantic Logfire.
