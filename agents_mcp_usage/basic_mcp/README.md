@@ -1,8 +1,8 @@
-# Basic MCP Usage Examples
+# Basic MCP Usage
 
-This directory contains examples of integrating Model Context Protocol (MCP) with various LLM agent frameworks.
+This directory contains examples of using tools from a single Model Context Protocol (MCP) with various LLM agent frameworks.
 
-Each script demonstrates how to connect to a single local MCP server and use it with a different agent framework.
+Each script demonstrates how to connect to a single local MCP server and use it with a different agent framework. The examples follow a consistent pattern while highlighting framework-specific approaches to MCP server interaction.
 
 ## Quickstart
 

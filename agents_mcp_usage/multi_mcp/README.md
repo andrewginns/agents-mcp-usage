@@ -1,8 +1,8 @@
-# Multi-MCP Usage Examples
+# Multi-MCP Usage
 
-This directory contains advanced examples demonstrating the integration of multiple Model Context Protocol (MCP) servers with agent frameworks.
+This directory contains examples demonstrating the integration of tools from multiple Model Context Protocol (MCP) servers with various LLM agent frameworks.
 
-Unlike the basic examples that use a single MCP server, these examples show how to connect to and coordinate between multiple specialised MCP servers simultaneously.
+Agents utilising multiple MCP servers can be dramatically more complex than an Agent using a single server. This is because as the number of servers grow the number of tools that the Agent must reason on when and how to use increases. As a result this component not only demonstrates an Agent's use of multiple MCP servers, but also includes evaluations to validate that they are being used to successfully accomplish the task according to various evaluation criterias.
 
 
 ## Quickstart
@@ -162,6 +162,20 @@ sequenceDiagram
 ```
 
 The sequence diagram shows how the agent coordinates between multiple specialised MCP servers. It highlights the parallel connection establishment, selective tool usage based on need, and proper connection management.
+
+## Agent Evaluations
+
+Research in LLM agent development has identified tool overload as a significant challenge for agent performance. When faced with too many tools, agents often struggle with:
+
+1. **Tool Selection Complexity**: Determining which tool from which server is most appropriate for a given subtask becomes exponentially more difficult as the number of available tools increases.
+
+2. **Context Management**: Maintaining awareness of which server provides which capabilities and how to properly format requests for each server adds cognitive load to the agent.
+
+3. **Error Recovery**: When tool usage fails, diagnosing whether the issue stems from incorrect tool selection, improper input formatting, or server-specific limitations becomes more challenging with multiple servers.
+
+4. **Reasoning Overhead**: The agent must dedicate more of its context window and reasoning capacity to tool management rather than task completion.
+
+The evaluation framework included in this component is essential for validating that agents can effectively navigate the increased complexity of multiple MCP servers. By measuring success against specific evaluation criteria, developers can ensure that the benefits of tool specialisation outweigh the potential pitfalls of tool overload.
 
 ## Example Files
 
