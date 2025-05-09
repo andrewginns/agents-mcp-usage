@@ -67,7 +67,7 @@ This project aims to teach:
 
 ## Basic MCP: Single Server Usage
 
-The `basic_mcp` module demonstrates how to integrate a single MCP server with different agent frameworks. Each example follows a similar pattern:
+The `basic_mcp` directory demonstrates how to integrate a single MCP server with different agent frameworks. Each example follows a similar pattern:
 
 1. **Environment Setup**: Loading environment variables and configuring logging
 2. **Server Connection**: Establishing a connection to the local MCP server
@@ -154,12 +154,12 @@ More details on basic MCP implementation can be found in the [basic_mcp README](
 
 ## Multi-MCP: Advanced Usage
 
-The `multi_mcp` module demonstrates advanced techniques for connecting to and coordinating between multiple specialized MCP servers simultaneously. This approach offers several advantages:
+The `multi_mcp` directory demonstrates advanced techniques for connecting to and coordinating between multiple specialised MCP servers simultaneously. This approach offers several advantages:
 
 1. **Domain Separation**: Each MCP server can focus on a specific domain or set of capabilities
 2. **Modularity**: Add, remove, or update capabilities without disrupting the entire system
 3. **Scalability**: Distribute load across multiple servers for better performance
-4. **Specialization**: Optimize each MCP server for its specific use case
+4. **Specialisation**: Optimise each MCP server for its specific use case
 
 ### Multi-MCP Architecture
 
@@ -251,4 +251,4 @@ A key advantage highlighted is flexibility; MCP allows developers to more easily
 - OpenTelemetry support for leveraging existing tooling
 - Pydantic integration for analytics on validations
 
-Logfire gives you visibility into how your code is running, which is especially valuable for LLM applications where understanding model behavior is critical.
+Logfire gives you visibility into how your code is running, which is especially valuable for LLM applications where understanding model behaviour is critical.
