@@ -1,9 +1,28 @@
-
 # Multi-MCP Usage Examples
 
 This directory contains advanced examples demonstrating the integration of multiple Model Context Protocol (MCP) servers with agent frameworks.
 
-Unlike the basic examples that use a single MCP server, these examples show how to connect to and coordinate between multiple specialized MCP servers simultaneously.
+Unlike the basic examples that use a single MCP server, these examples show how to connect to and coordinate between multiple specialised MCP servers simultaneously.
+
+
+## Quickstart
+
+1. Configure `.env` and API keys following instructions in the [README.md](README.md)
+
+3. Ensure the Node.js MCP server can be used:
+   - Install the Node.js MCP server (mermaid-validator) locally, run `make install` if you haven't already
+
+4. Run an example script:
+   ```bash
+   # Run the Pydantic-AI multi-MCP example
+   uv run agents_mcp_usage/multi_mcp/multi_mcp_use/pydantic_mcp.py
+   
+   # Run the multi-MCP evaluation
+   uv run agents_mcp_usage/multi_mcp/eval_multi_mcp/evals_pydantic_mcp.py
+   ```
+
+5. Check the console output or Logfire for results.
+
 
 ### Multi-MCP Architecture
 
@@ -44,9 +63,105 @@ graph LR
     
     LLM_Response[("Response")] --> User
     LLMs --> LLM_Response
+
+    %% Node styling for better dark/light mode readability
+    classDef userNode fill:#b3e0ff,stroke:#0066cc,stroke-width:2px,color:#000000;
+    classDef agentNode fill:#d1c4e9,stroke:#673ab7,stroke-width:2px,color:#000000;
+    classDef mcpNode fill:#ffccbc,stroke:#ff5722,stroke-width:2px,color:#000000;
+    classDef pythonMcpNode fill:#ffccbc,stroke:#ff5722,stroke-width:2px,color:#000000;
+    classDef nodeMcpNode fill:#ffe0b2,stroke:#ff9800,stroke-width:2px,color:#000000;
+    classDef toolNode fill:#dcedc8,stroke:#8bc34a,stroke-width:1px,color:#000000;
+    classDef llmNode fill:#c8e6c9,stroke:#4caf50,stroke-width:1px,color:#000000;
+    classDef outputNode fill:#ffcdd2,stroke:#e53935,stroke-width:2px,color:#000000;
+    classDef logNode fill:#e1bee7,stroke:#8e24aa,stroke-width:2px,color:#000000;
+
+    %% Apply styles to nodes
+    class User userNode;
+    class Agent agentNode;
+    class PythonMCP pythonMcpNode;
+    class NodeMCP nodeMcpNode;
+    class Tools,Resources,MermaidValidator toolNode;
+    class LLMs llmNode;
+    class LLM_Response outputNode;
+    class Logfire logNode;
 ```
 
-This diagram illustrates how an agent can leverage multiple specialized MCP servers simultaneously, each providing distinct tools and resources.
+This diagram illustrates how an agent can leverage multiple specialised MCP servers simultaneously, each providing distinct tools and resources.
+
+### Multi-MCP Sequence Flow
+
+```mermaid
+sequenceDiagram
+    participant User
+    participant Agent as Pydantic-AI Agent
+    participant PyMCP as Python MCP Server
+    participant NodeMCP as Node.js MCP Server
+    participant LLM as LLM Provider
+    participant PyTools as Python Tools
+    participant NodeTools as Mermaid Validator
+    participant Logfire as Logfire Tracing
+    
+    Note over User,Logfire: Multi-MCP Interaction Flow
+    
+    User->>Agent: Run script with query
+    
+    activate Agent
+    Agent->>Logfire: Start tracing session
+    
+    par Connect to multiple MCP servers
+        Agent->>PyMCP: Initialise connection
+        activate PyMCP
+        PyMCP-->>Agent: Connection established
+        
+        Agent->>NodeMCP: Initialise connection
+        activate NodeMCP
+        NodeMCP-->>Agent: Connection established
+    end
+    
+    Agent->>LLM: Process user query
+    activate LLM
+    
+    loop Tool Selection & Execution
+        alt Python MCP Tools Needed
+            LLM-->>Agent: Need Python tool
+            Agent->>PyMCP: Execute tool (e.g., add, get_time)
+            PyMCP->>PyTools: Call tool function
+            activate PyTools
+            PyTools-->>PyMCP: Return result
+            deactivate PyTools
+            PyMCP-->>Agent: Tool result
+            Agent->>LLM: Continue with tool result
+        else Node.js MCP Tools Needed
+            LLM-->>Agent: Need Mermaid validation
+            Agent->>NodeMCP: Validate Mermaid diagram
+            NodeMCP->>NodeTools: Process diagram
+            activate NodeTools
+            NodeTools-->>NodeMCP: Validation result
+            deactivate NodeTools
+            NodeMCP-->>Agent: Tool result
+            Agent->>LLM: Continue with tool result
+        end
+    end
+    
+    LLM-->>Agent: Final response
+    deactivate LLM
+    
+    Agent->>Logfire: Log completion
+    
+    par Close MCP connections
+        Agent->>PyMCP: Close connection
+        deactivate PyMCP
+        Agent->>NodeMCP: Close connection
+        deactivate NodeMCP
+    end
+    
+    Agent->>User: Display final answer
+    deactivate Agent
+    
+    Note over User,Logfire: End of interaction
+```
+
+The sequence diagram shows how the agent coordinates between multiple specialised MCP servers. It highlights the parallel connection establishment, selective tool usage based on need, and proper connection management.
 
 ## Example Files
 
@@ -61,8 +176,8 @@ uv run agents_mcp_usage/multi_mcp/multi_mcp_use/pydantic_mcp.py
 ```
 
 Key features:
-- Connects to multiple specialized MCP servers simultaneously
-- Organizes tools and resources by domain
+- Connects to multiple specialised MCP servers simultaneously
+- Organises tools and resources by domain
 - Shows how to coordinate between different MCP servers
 - Includes Logfire instrumentation for comprehensive tracing
 
@@ -77,34 +192,18 @@ uv run agents_mcp_usage/multi_mcp/eval_multi_mcp/evals_pydantic_mcp.py
 ```
 
 Key features:
-- Evaluates agent performance when using multiple specialized MCP servers
-- Uses PydanticAI evaluation tools to measure outcomes
-- Compares results with single-MCP approaches
+- Evaluates agent performance when using multiple specialised MCP servers
+- Uses PydanticAI Agent evaluation to measure success of outcomes
 - Generates performance metrics viewable in Logfire
-
-### Mermaid Diagrams Generator
-
-**File:** `mermaid_diagrams.py`
-
-A utility for generating Mermaid diagrams to visualize MCP architecture.
-
-```bash
-uv run agents_mcp_usage/multi_mcp/mermaid_diagrams.py
-```
-
-Key features:
-- Creates visualization of MCP architectures
-- Helps understand the flow between agents, MCP servers, and LLMs
-- Customizable to represent different configurations
 
 ## Benefits of Multi-MCP Architecture
 
-Using multiple specialized MCP servers offers several advantages:
+Using multiple specialised MCP servers offers several advantages:
 
 1. **Domain Separation**: Each MCP server can focus on a specific domain or set of capabilities.
 2. **Modularity**: Add, remove, or update capabilities without disrupting the entire system.
 3. **Scalability**: Distribute load across multiple servers for better performance.
-4. **Specialization**: Optimize each MCP server for its specific use case.
+4. **Specialisation**: Optimise each MCP server for its specific use case.
 5. **Security**: Control access to sensitive tools or data through separate servers.
 
 This approach provides a more flexible and maintainable architecture for complex agent systems.

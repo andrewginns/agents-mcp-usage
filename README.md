@@ -23,9 +23,11 @@ Tracing is done through Pydantic Logfire.
 - [Optional] Add `LOGFIRE_TOKEN` to visualise evaluations in Logfire web ui
 
 Run an Agent framework script e.g.:
-- `uv run basic_mcp_use/pydantic_mcp.py` - Requires `GEMINI_API_KEY` by default
+- `uv run basic_mcp_use/pydantic_mcp.py`
+  - Requires `GEMINI_API_KEY` by default
 
-- `uv run basic_mcp_use/oai-agent_mcp.py` - Requires `OPENAI_API_KEY` by default
+- `uv run basic_mcp_use/oai-agent_mcp.py`
+  - Requires `OPENAI_API_KEY` by default
 
 Check console or Logfire for output
 
@@ -33,7 +35,8 @@ Check console or Logfire for output
 
 This project aims to teach:
 1. How to use MCP with multiple LLM Agent frameworks
-    - Single MCP server usage and Multi-MCP server usage
+    - Agent using a single MCP server
+    - Agent using multi-MCP servers
 2. How to see traces LLM Agents with Logfire
 3. How to evaluate LLMs with PydanticAI evals
 

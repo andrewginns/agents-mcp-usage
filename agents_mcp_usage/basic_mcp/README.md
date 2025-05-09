@@ -4,6 +4,27 @@ This directory contains examples of integrating Model Context Protocol (MCP) wit
 
 Each script demonstrates how to connect to a single local MCP server and use it with a different agent framework.
 
+## Quickstart
+
+1. Configure `.env` and API keys following instructions in the [README.md](README.md)
+
+2. Run any example script:
+   ```bash
+   # Run the Pydantic-AI example
+   uv run agents_mcp_usage/basic_mcp/basic_mcp_use/pydantic_mcp.py
+   
+   # Run the OpenAI Agents example
+   uv run agents_mcp_usage/basic_mcp/basic_mcp_use/oai-agent_mcp.py
+   
+   # Run the LangGraph example
+   uv run agents_mcp_usage/basic_mcp/basic_mcp_use/langgraph_mcp.py
+   
+   # Run the Google ADK example
+   uv run agents_mcp_usage/basic_mcp/basic_mcp_use/adk_mcp.py
+   ```
+
+4. Check the console output or Logfire for results.
+
 ### Basic MCP Architecture
 
 ```mermaid
@@ -58,13 +79,77 @@ graph LR
     GEM --> LLM_Response
     OTHER --> LLM_Response
 
-    style MCP fill:#f9f,stroke:#333,stroke-width:2px
-    style User fill:#bbf,stroke:#338,stroke-width:2px
-    style Logfire fill:#bfb,stroke:#383,stroke-width:2px
-    style LLM_Response fill:#fbb,stroke:#833,stroke-width:2px
+    %% Node styling for better dark/light mode readability
+    classDef userNode fill:#b3e0ff,stroke:#0066cc,stroke-width:2px,color:#000000;
+    classDef agentNode fill:#d1c4e9,stroke:#673ab7,stroke-width:1px,color:#000000;
+    classDef mcpNode fill:#ffccbc,stroke:#ff5722,stroke-width:2px,color:#000000;
+    classDef toolNode fill:#ffe0b2,stroke:#ff9800,stroke-width:1px,color:#000000;
+    classDef llmNode fill:#c8e6c9,stroke:#4caf50,stroke-width:1px,color:#000000;
+    classDef outputNode fill:#ffcdd2,stroke:#e53935,stroke-width:2px,color:#000000;
+    classDef logNode fill:#e1bee7,stroke:#8e24aa,stroke-width:2px,color:#000000;
+
+    %% Apply styles to nodes
+    class User,LLM_Response userNode;
+    class Agent,ADK,LG,OAI,PYD agentNode;
+    class MCP mcpNode;
+    class Tools,Resources toolNode;
+    class OAI_LLM,GEM,OTHER llmNode;
+    class LLM_Response outputNode;
+    class Logfire logNode;
 ```
 
 The diagram illustrates how MCP serves as a standardised interface between different agent frameworks and LLM providers.The flow shows how users interact with the system by running a specific agent script, which then leverages MCP to communicate with LLM providers, while Logfire provides tracing and observability.
+
+### Basic MCP Sequence Flow
+
+```mermaid
+sequenceDiagram
+    participant User
+    participant Agent as Agent Framework
+    participant MCP as Python MCP Server
+    participant LLM as LLM Provider
+    participant Tools as MCP Tools
+    participant Logfire as Logfire Tracing
+    
+    Note over User,Logfire: Basic MCP Interaction Flow
+    
+    User->>Agent: Run agent script with query
+    
+    activate Agent
+    Agent->>Logfire: Start tracing
+    
+    Agent->>MCP: Initialise connection
+    activate MCP
+    MCP-->>Agent: Connection established
+    
+    Agent->>MCP: Send user query
+    
+    MCP->>LLM: Generate response/action
+    activate LLM
+    
+    loop Tool Use Cycle
+        LLM-->>MCP: Request tool execution
+        MCP->>Tools: Execute tool (e.g., add, get_time)
+        activate Tools
+        Tools-->>MCP: Return tool result
+        deactivate Tools
+        MCP->>LLM: Continue with tool result
+    end
+    
+    LLM-->>MCP: Final response
+    deactivate LLM
+    
+    MCP-->>Agent: Return response
+    deactivate MCP
+    
+    Agent->>Logfire: Log completion
+    Agent->>User: Display final answer
+    deactivate Agent
+    
+    Note over User,Logfire: End of interaction
+```
+
+The sequence diagram illustrates the temporal flow of interactions between the user, agent framework, MCP server, LLM provider, and tools. It highlights how the tool execution cycle operates within the MCP architecture.
 
 ### Google Agent Development Kit (ADK)
 
