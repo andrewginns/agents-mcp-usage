@@ -1,6 +1,7 @@
 import asyncio
 import contextlib
 import os
+import time
 
 import logfire
 from dotenv import load_dotenv
@@ -122,6 +123,13 @@ async def main(query: str = "Hi!", request_limit: int = 5) -> None:
     print("Closing MCP server connections...")
     await exit_stack.aclose()
     print("Cleanup complete.")
+
+    # Give Logfire time to complete any pending exports
+    print("Shutting down Logfire...")
+    logfire.shutdown()
+    # Small delay to ensure export completes
+    time.sleep(0.5)
+    print("Logfire shutdown complete.")
 
 
 if __name__ == "__main__":
