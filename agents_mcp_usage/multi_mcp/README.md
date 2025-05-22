@@ -17,6 +17,9 @@ Agents utilising multiple MCP servers can be dramatically more complex than an A
    # Run the Pydantic-AI multi-MCP example
    uv run agents_mcp_usage/multi_mcp/multi_mcp_use/pydantic_mcp.py
    
+   # Run the Google ADK multi-MCP example
+   uv run agents_mcp_usage/multi_mcp/multi_mcp_use/adk_mcp.py
+   
    # Run the multi-MCP evaluation
    uv run agents_mcp_usage/multi_mcp/eval_multi_mcp/evals_pydantic_mcp.py
    ```
@@ -31,7 +34,7 @@ graph LR
     User((User)) --> |"Run script<br>(e.g., pydantic_mcp.py)"| Agent
 
     subgraph "Agent Framework"
-        Agent["Pydantic-AI Agent<br>(pydantic_mcp.py)"]
+        Agent["Pydantic-AI/ADK Agent<br>(pydantic_mcp.py/adk_mcp.py)"]
     end
 
     subgraph "MCP Servers"
@@ -48,7 +51,7 @@ graph LR
     end
 
     subgraph "LLM Providers"
-        LLMs["PydanticAI LLM call"]
+        LLMs["PydanticAI/Gemini LLM call"]
     end
     
     Logfire[("Logfire<br>Tracing")]
@@ -93,7 +96,7 @@ This diagram illustrates how an agent can leverage multiple specialised MCP serv
 ```mermaid
 sequenceDiagram
     participant User
-    participant Agent as Pydantic-AI Agent
+    participant Agent as Pydantic-AI/ADK Agent
     participant PyMCP as Python MCP Server
     participant NodeMCP as Node.js MCP Server
     participant LLM as LLM Provider
@@ -194,6 +197,23 @@ Key features:
 - Organises tools and resources by domain
 - Shows how to coordinate between different MCP servers
 - Includes Logfire instrumentation for comprehensive tracing
+
+### Google ADK Multi-MCP
+
+**File:** `multi_mcp_use/adk_mcp.py`
+
+This example demonstrates how to use multiple MCP servers with Google's Agent Development Kit (ADK).
+
+```bash
+uv run agents_mcp_usage/multi_mcp/multi_mcp_use/adk_mcp.py
+```
+
+Key features:
+- Uses Google's ADK framework with Gemini model
+- Connects to both Python MCP server and Node.js Mermaid validator
+- Demonstrates proper connection management with contextlib.AsyncExitStack
+- Shows how to handle asynchronous MCP tool integration
+- Uses a simple test case that utilizes both MCP servers in a single query
 
 ### Multi-MCP Evaluation
 
