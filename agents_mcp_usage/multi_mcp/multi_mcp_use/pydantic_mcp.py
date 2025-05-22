@@ -20,15 +20,15 @@ local_server = MCPServerStdio(
     command="uv",
     args=[
         "run",
-        "run_server.py",
+        "mcp_servers/example_server.py",
         "stdio",
     ],
 )
 mermaid_server = MCPServerStdio(
-    command="npx",
+    command="uv",
     args=[
-        "-y",
-        "@rtuin/mcp-mermaid-validator@latest",
+        "run",
+        "mcp_servers/mermaid_validator.py",
     ],
 )
 # Create Agent with MCP servers
@@ -54,7 +54,7 @@ async def main(query: str = "Hi!", request_limit: int = 5) -> None:
     # Invoke the agent with the usage limits
     async with agent.run_mcp_servers():
         result = await agent.run(query, usage_limits=usage_limits)
-    # print(result.output)
+    print(result.output)
     return result
 
 

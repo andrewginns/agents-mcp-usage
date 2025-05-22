@@ -20,7 +20,7 @@ graph LR
     # MCP Server
     subgraph "MCP"
         direction TD
-        MCP["Model Context Protocol Server<br>(run_server.py)"]
+        MCP["Model Context Protocol Server<br>(mcp_servers/example_server.py)"]
         Tools["Tools<br>- add(a, b)<br>- get_current_time() e.g. {current_time}"]
         Resources["Resources<br>- greeting://{{name}}"]
         MCP --- Tools
@@ -86,7 +86,7 @@ graph LR
     # MCP Server
     subgraph "MCP"
         direction TB
-        MCP["Model Context Protocol Server<br>(run_server.py)"]
+        MCP["Model Context Protocol Server<br>(mcp_servers/example_server.py)"]
         Tools["Tools<br>- add(a, b)<br>- get_current_time() e.g. {current_time}"]
         Resources["Resources<br>- greeting://{{name}}"]
         MCP --- Tools
@@ -150,7 +150,7 @@ graph LR
     %% MCP Server
     subgraph "MCP Server"
         direction TB
-        MCP["Model Context Protocol Server<br>(run_server.py)"]
+        MCP["Model Context Protocol Server<br>(mcp_servers/example_server.py)"]
         Tools["Tools<br>- add(a, b)<br>- get_current_time() e.g. {current_time}"]
         Resources["Resources<br>- greeting://{{name}}"]
         MCPs --- Tools
@@ -214,7 +214,7 @@ graph LR
     %% MCP Server
     subgraph "MCP Server"
         direction TB
-        MCP["Model Context Protocol Server<br>(run_server.py)"]
+        MCP["Model Context Protocol Server<br>(mcp_servers/example_server.py)"]
         Tools["Tools<br>- add(a, b)<br>- get_current_time() e.g. {current_time}"]
         Resources["Resources<br>- greeting://{{name}}"]
         MCP --- Tools

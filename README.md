@@ -11,8 +11,9 @@ Both single and multiple MCP server examples are demonstrated
 - [Agent with multiple MCP servers](agents_mcp_usage/multi_mcp/README.md)
   - Also includes Agent evaluations
 
-The repo also includes a Python MCP Server [`run_server.py`](run_server.py) based on [MCP Python SDK Quickstart](https://github.com/modelcontextprotocol/python-sdk/blob/b4c7db6a50a5c88bae1db5c1f7fba44d16eebc6e/README.md?plain=1#L104)
-- Modified to include a datetime tool and run as a server invoked by Agents
+The repo also includes Python MCP Servers:
+- [`example_server.py`](mcp_servers/example_server.py) based on [MCP Python SDK Quickstart](https://github.com/modelcontextprotocol/python-sdk/blob/b4c7db6a50a5c88bae1db5c1f7fba44d16eebc6e/README.md?plain=1#L104) - Modified to include a datetime tool and run as a server invoked by Agents
+- [`mermaid_validator.py`](mcp_servers/mermaid_validator.py) - Mermaid diagram validation server using mermaid-cli
 
 Tracing is done through Pydantic Logfire.
 
@@ -67,8 +68,9 @@ This project aims to teach:
   - **eval_multi_mcp/** - Contains evaluation examples for multi-MCP usage:
     - `evals_pydantic_mcp.py` - Example of evaluating the use of multiple MCP servers with Pydantic-AI
 
-- **Demo Python MCP Server**
-  - `run_server.py` - Simple MCP server that runs locally, implemented in Python
+- **Demo Python MCP Servers**
+  - `mcp_servers/example_server.py` - Simple MCP server that runs locally, implemented in Python
+  - `mcp_servers/mermaid_validator.py` - Mermaid diagram validation MCP server, implemented in Python
 
 ## Basic MCP: Single Server Usage
 
@@ -104,7 +106,7 @@ graph LR
     end
 
     subgraph "Python MCP Server"
-        MCP["Model Context Protocol Server<br>(run_server.py)"]
+        MCP["Model Context Protocol Server<br>(mcp_servers/example_server.py)"]
         Tools["Tools<br>- add(a, b)<br>- get_current_time()"]
         Resources["Resources<br>- greeting://{name}"]
         MCP --- Tools
@@ -177,8 +179,8 @@ graph LR
     end
 
     subgraph "MCP Servers"
-        PythonMCP["Python MCP Server<br>(run_server.py)"]
-        NodeMCP["Node.js MCP Server<br>(mermaid-validator)"]
+        PythonMCP["Python MCP Server<br>(mcp_servers/example_server.py)"]
+        MermaidMCP["Python Mermaid MCP Server<br>(mcp_servers/mermaid_validator.py)"]
         
         Tools["Tools<br>- add(a, b)<br>- get_current_time()"]
         Resources["Resources<br>- greeting://{name}"]
@@ -186,7 +188,7 @@ graph LR
         
         PythonMCP --- Tools
         PythonMCP --- Resources
-        NodeMCP --- MermaidValidator
+        MermaidMCP --- MermaidValidator
     end
 
     subgraph "LLM Providers"
@@ -196,10 +198,10 @@ graph LR
     Logfire[("Logfire<br>Tracing")]
     
     Agent --> PythonMCP
-    Agent --> NodeMCP
+    Agent --> MermaidMCP
     
     PythonMCP --> LLMs
-    NodeMCP --> LLMs
+    MermaidMCP --> LLMs
     
     Agent --> Logfire
     

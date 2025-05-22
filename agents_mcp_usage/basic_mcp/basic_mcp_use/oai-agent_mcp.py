@@ -24,7 +24,7 @@ async def main(query: str = "Greet Andrew and give him the current time") -> Non
     async with MCPServerStdio(
         params={
             "command": "uv",
-            "args": ["run", "run_server.py", "stdio"],
+            "args": ["run", "mcp_servers/example_server.py", "stdio"],
         }
     ) as server:
         # Initialise the agent with the server

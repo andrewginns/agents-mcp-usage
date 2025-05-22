@@ -29,7 +29,7 @@ async def main(query: str = "Greet Andrew and give him the current time") -> Non
     # Set up MCP server connection
     server_params = StdioServerParameters(
         command="uv",
-        args=["run", "run_server.py", "stdio"],
+        args=["run", "mcp_servers/example_server.py", "stdio"],
     )
 
     tools, exit_stack = await MCPToolset.from_server(connection_params=server_params)
