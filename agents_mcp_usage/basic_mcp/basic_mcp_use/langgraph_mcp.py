@@ -21,7 +21,7 @@ logfire.instrument_mcp()
 # Create server parameters for stdio connection
 server = StdioServerParameters(
     command="uv",
-    args=["run", "run_server.py", "stdio"],
+            args=["run", "mcp_servers/example_server.py", "stdio"],
 )
 
 model = ChatGoogleGenerativeAI(

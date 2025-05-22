@@ -36,7 +36,7 @@ local_server = MCPServerStdio(
     command="uv",
     args=[
         "run",
-        "run_server.py",
+        "mcp_servers/example_server.py",
         "stdio",
     ],
 )

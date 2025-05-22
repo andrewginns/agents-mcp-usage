@@ -45,7 +45,7 @@ graph LR
     end
 
     subgraph "Python MCP Server"
-        MCP["Model Context Protocol Server<br>(run_server.py)"]
+        MCP["Model Context Protocol Server<br>(mcp_servers/example_server.py)"]
         Tools["Tools<br>- add(a, b)<br>- get_current_time()"]
         Resources["Resources<br>- greeting://{name}"]
         MCP --- Tools
@@ -229,7 +229,7 @@ The examples are designed to be as similar as possible, allowing you to compare 
 
 ## MCP Server
 
-All examples connect to the same MCP server defined in `run_server.py` at the project root. This server provides:
+All examples connect to the same MCP server defined in `mcp_servers/example_server.py`. This server provides:
 
 - An addition tool (`add(a, b)`)
 - A time tool (`get_current_time()`) 

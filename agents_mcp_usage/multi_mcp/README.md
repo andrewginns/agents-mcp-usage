@@ -9,8 +9,8 @@ Agents utilising multiple MCP servers can be dramatically more complex than an A
 
 1. Configure `.env` and API keys following instructions in the [README.md](README.md)
 
-3. Ensure the Node.js MCP server can be used:
-   - Install the Node.js MCP server (mermaid-validator) locally, run `make install` if you haven't already
+3. Ensure the Python MCP servers can be used:
+   - The Python MCP servers (example_server.py and mermaid_validator.py) are included in the repository
 
 4. Run an example script:
    ```bash
@@ -38,8 +38,8 @@ graph LR
     end
 
     subgraph "MCP Servers"
-        PythonMCP["Python MCP Server<br>(run_server.py)"]
-        NodeMCP["Node.js MCP Server<br>(mermaid-validator)"]
+        PythonMCP["Python MCP Server<br>(mcp_servers/example_server.py)"]
+        MermaidMCP["Python Mermaid MCP Server<br>(mcp_servers/mermaid_validator.py)"]
         
         Tools["Tools<br>- add(a, b)<br>- get_current_time()"]
         Resources["Resources<br>- greeting://{name}"]
@@ -47,7 +47,7 @@ graph LR
         
         PythonMCP --- Tools
         PythonMCP --- Resources
-        NodeMCP --- MermaidValidator
+        MermaidMCP --- MermaidValidator
     end
 
     subgraph "LLM Providers"
@@ -57,10 +57,10 @@ graph LR
     Logfire[("Logfire<br>Tracing")]
     
     Agent --> PythonMCP
-    Agent --> NodeMCP
+    Agent --> MermaidMCP
     
     PythonMCP --> LLMs
-    NodeMCP --> LLMs
+    MermaidMCP --> LLMs
     
     Agent --> Logfire
     
@@ -82,7 +82,7 @@ graph LR
     class User userNode;
     class Agent agentNode;
     class PythonMCP pythonMcpNode;
-    class NodeMCP nodeMcpNode;
+    class MermaidMCP nodeMcpNode;
     class Tools,Resources,MermaidValidator toolNode;
     class LLMs llmNode;
     class LLM_Response outputNode;
@@ -98,10 +98,10 @@ sequenceDiagram
     participant User
     participant Agent as Pydantic-AI/ADK Agent
     participant PyMCP as Python MCP Server
-    participant NodeMCP as Node.js MCP Server
+    participant MermaidMCP as Python Mermaid MCP Server
     participant LLM as LLM Provider
     participant PyTools as Python Tools
-    participant NodeTools as Mermaid Validator
+    participant MermaidTools as Mermaid Validator
     participant Logfire as Logfire Tracing
     
     Note over User,Logfire: Multi-MCP Interaction Flow
@@ -116,9 +116,9 @@ sequenceDiagram
         activate PyMCP
         PyMCP-->>Agent: Connection established
         
-        Agent->>NodeMCP: Initialise connection
-        activate NodeMCP
-        NodeMCP-->>Agent: Connection established
+        Agent->>MermaidMCP: Initialise connection
+        activate MermaidMCP
+        MermaidMCP-->>Agent: Connection established
     end
     
     Agent->>LLM: Process user query
@@ -134,14 +134,14 @@ sequenceDiagram
             deactivate PyTools
             PyMCP-->>Agent: Tool result
             Agent->>LLM: Continue with tool result
-        else Node.js MCP Tools Needed
+        else Mermaid MCP Tools Needed
             LLM-->>Agent: Need Mermaid validation
-            Agent->>NodeMCP: Validate Mermaid diagram
-            NodeMCP->>NodeTools: Process diagram
-            activate NodeTools
-            NodeTools-->>NodeMCP: Validation result
-            deactivate NodeTools
-            NodeMCP-->>Agent: Tool result
+            Agent->>MermaidMCP: Validate Mermaid diagram
+            MermaidMCP->>MermaidTools: Process diagram
+            activate MermaidTools
+            MermaidTools-->>MermaidMCP: Validation result
+            deactivate MermaidTools
+            MermaidMCP-->>Agent: Tool result
             Agent->>LLM: Continue with tool result
         end
     end
@@ -154,8 +154,8 @@ sequenceDiagram
     par Close MCP connections
         Agent->>PyMCP: Close connection
         deactivate PyMCP
-        Agent->>NodeMCP: Close connection
-        deactivate NodeMCP
+        Agent->>MermaidMCP: Close connection
+        deactivate MermaidMCP
     end
     
     Agent->>User: Display final answer
@@ -210,7 +210,7 @@ uv run agents_mcp_usage/multi_mcp/multi_mcp_use/adk_mcp.py
 
 Key features:
 - Uses Google's ADK framework with Gemini model
-- Connects to both Python MCP server and Node.js Mermaid validator
+- Connects to both Python MCP server and Python Mermaid validator
 - Demonstrates proper connection management with contextlib.AsyncExitStack
 - Shows how to handle asynchronous MCP tool integration
 - Uses a simple test case that utilizes both MCP servers in a single query
