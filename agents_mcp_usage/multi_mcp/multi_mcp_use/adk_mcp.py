@@ -19,7 +19,7 @@ load_dotenv()
 os.environ["GOOGLE_API_KEY"] = os.getenv("GEMINI_API_KEY", "")
 
 # Configure logging if LOGFIRE_TOKEN is set
-logfire.configure(send_to_logfire="if-token-present", service_name="adk-basic-mcp")
+logfire.configure(send_to_logfire="if-token-present", service_name="adk-multi-mcp")
 logfire.instrument_mcp()
 
 
