@@ -10,7 +10,7 @@ from pydantic_ai import Agent
 from pydantic_ai.mcp import MCPServerStdio
 from pydantic_ai.usage import UsageLimits
 from pydantic_evals import Case, Dataset
-from pydantic_evals.evaluators import Evaluator, EvaluatorContext, IsInstance, LLMJudge
+from pydantic_evals.evaluators import Evaluator, EvaluatorContext, LLMJudge
 
 from agents_mcp_usage.multi_mcp.mermaid_diagrams import (
     invalid_mermaid_diagram_easy,
