@@ -13,6 +13,7 @@ dependencies = [
     "langchain-mcp-adapters>=0.0.9",
     "langgraph>=0.3.31",
     "logfire>=3.14.0",
+    "loguru>=0.7.3",
     "mcp==1.6.0",
     "openai-agents>=0.0.12",
     "pydantic-ai-slim[mcp]>=0.1.3",
