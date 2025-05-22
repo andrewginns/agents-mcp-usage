@@ -41,10 +41,10 @@ async def get_tools_async():
     )
 
     mermaid_server = StdioServerParameters(
-        command="npx",
+        command="uv",
         args=[
-            "-y",
-            "@rtuin/mcp-mermaid-validator@latest",
+            "run",
+            "mcp_servers/mermaid_validator.py",
         ],
     )
 
