@@ -1,18 +1,36 @@
+#!/usr/bin/env python3
+"""
+Single-Model Evaluation Module for Mermaid Diagram Fixing
+
+This module provides the core functionality for evaluating LLM models
+on mermaid diagram fixing tasks using multiple MCP servers. It includes:
+- Schema definitions for inputs and outputs
+- Custom evaluators for multi-MCP tool usage validation
+- Agent creation and mermaid diagram fixing functions
+- Dataset creation and evaluation utilities
+- CSV export functionality
+- Robust retry logic for handling transient API failures
+
+This module is designed to be imported by multi-model evaluation scripts.
+"""
+
 import asyncio
 import csv
 import os
+import random
 from datetime import datetime
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Optional
 
 import logfire
 from dotenv import load_dotenv
-from pydantic import BaseModel
+from pydantic import BaseModel, ValidationError
 from pydantic_ai import Agent
-from pydantic_ai.exceptions import UsageLimitExceeded
+from pydantic_ai.exceptions import UsageLimitExceeded, ModelHTTPError
 from pydantic_ai.mcp import MCPServerStdio
 from pydantic_ai.usage import UsageLimits
 from pydantic_evals import Case, Dataset
 from pydantic_evals.evaluators import Evaluator, EvaluatorContext, LLMJudge
+from pydantic_evals.reporting import EvaluationReport
 
 from agents_mcp_usage.multi_mcp.mermaid_diagrams import (
     invalid_mermaid_diagram_easy,
@@ -31,50 +49,185 @@ logfire.configure(
 logfire.instrument_mcp()
 logfire.instrument_pydantic_ai()
 
-# Default model to use
+# Default model configurations
 DEFAULT_MODEL = "gemini-2.5-pro-preview-05-06"
+DEFAULT_MODELS = [
+    "gemini-2.5-pro-preview-06-05",
+    "gemini-2.0-flash",
+    "gemini-2.5-flash-preview-04-17",
+]
 
-# Configure MCP servers
-local_server = MCPServerStdio(
-    command="uv",
-    args=[
-        "run",
-        "mcp_servers/example_server.py",
-        "stdio",
-    ],
-)
-mermaid_server = MCPServerStdio(
-    command="uv",
-    args=[
-        "run",
-        "mcp_servers/mermaid_validator.py",
-    ],
-)
+# Retry configuration
+RETRYABLE_HTTP_STATUS_CODES = {429, 500, 502, 503, 504}
+MAX_RETRY_ATTEMPTS = 3
+BASE_RETRY_DELAY = 1.0  # seconds
+MAX_RETRY_DELAY = 30.0  # seconds
+
+# ============================================================================
+# Retry Utilities
+# ============================================================================
 
 
-# Create Agent with MCP servers
-def create_agent(model: str = DEFAULT_MODEL, model_settings: dict[str, Any] = {}):
+def is_retryable_error(exception: Exception) -> bool:
+    """Check if an exception should be retried."""
+    if isinstance(exception, ModelHTTPError):
+        return exception.status_code in RETRYABLE_HTTP_STATUS_CODES
+
+    # Also retry on general connection errors that might be transient
+    if isinstance(exception, (ConnectionError, OSError)):
+        return True
+
+    return False
+
+
+async def exponential_backoff_retry(
+    func_call,
+    max_attempts: int = MAX_RETRY_ATTEMPTS,
+    base_delay: float = BASE_RETRY_DELAY,
+    max_delay: float = MAX_RETRY_DELAY,
+    jitter: bool = True,
+) -> Any:
+    """
+    Execute a function with exponential backoff retry logic.
+
+    Args:
+        func_call: Async function to retry
+        max_attempts: Maximum number of retry attempts
+        base_delay: Base delay between retries in seconds
+        max_delay: Maximum delay between retries in seconds
+        jitter: Whether to add random jitter to delays
+
+    Returns:
+        Result of the function call
+
+    Raises:
+        The last exception if all retries are exhausted
+    """
+    last_exception = None
+
+    for attempt in range(max_attempts):
+        try:
+            return await func_call()
+        except Exception as e:
+            last_exception = e
+
+            if not is_retryable_error(e):
+                logfire.warning(
+                    "Non-retryable error encountered",
+                    error_type=type(e).__name__,
+                    error_message=str(e),
+                    attempt=attempt + 1,
+                )
+                raise
+
+            if attempt == max_attempts - 1:
+                logfire.error(
+                    "Max retry attempts exhausted",
+                    error_type=type(e).__name__,
+                    error_message=str(e),
+                    attempts=max_attempts,
+                )
+                break
+
+            # Calculate delay with exponential backoff
+            delay = min(base_delay * (2**attempt), max_delay)
+            if jitter:
+                delay = delay * (0.5 + random.random() * 0.5)  # Add 50% jitter
+
+            logfire.warning(
+                "Retryable error encountered, retrying",
+                error_type=type(e).__name__,
+                error_message=str(e),
+                attempt=attempt + 1,
+                max_attempts=max_attempts,
+                delay_seconds=delay,
+            )
+
+            await asyncio.sleep(delay)
+
+    # Re-raise the last exception if all retries failed
+    if last_exception:
+        raise last_exception
+
+    # This should never be reached, but just in case
+    raise RuntimeError("Unexpected error in retry logic")
+
+
+# ============================================================================
+# MCP Server Configuration
+# ============================================================================
+
+
+def get_mcp_servers() -> List[MCPServerStdio]:
+    """Get the configured MCP servers for the evaluation."""
+    local_server = MCPServerStdio(
+        command="uv",
+        args=[
+            "run",
+            "mcp_servers/example_server.py",
+            "stdio",
+        ],
+    )
+    mermaid_server = MCPServerStdio(
+        command="uv",
+        args=[
+            "run",
+            "mcp_servers/mermaid_validator.py",
+        ],
+    )
+    return [local_server, mermaid_server]
+
+
+def create_agent(
+    model: str = DEFAULT_MODEL, model_settings: Dict[str, Any] = None
+) -> Agent:
+    """Create an agent with MCP servers for the specified model.
+
+    Args:
+        model: The model to use for the agent
+        model_settings: Optional model-specific settings
+
+    Returns:
+        Configured Agent instance
+    """
+    if model_settings is None:
+        model_settings = {}
+
     return Agent(
         model,
-        mcp_servers=[local_server, mermaid_server],
+        mcp_servers=get_mcp_servers(),
         model_settings=model_settings,
     )
 
 
-# Define input and output schema for evaluations
+# ============================================================================
+# Schema Definitions
+# ============================================================================
+
+
 class MermaidInput(BaseModel):
+    """Input schema for mermaid diagram fixing."""
+
     invalid_diagram: str
 
 
 class MermaidOutput(BaseModel):
+    """Output schema for mermaid diagram fixing with comprehensive metrics."""
+
     fixed_diagram: str
-    failure_reason: str = ""  # Add failure reason to track why a case failed
-    metrics: Dict[str, Any] = {}  # Add metrics field to capture LLM usage metrics
-    tools_used: List[str] = []  # Add field to track which MCP tools were called
+    failure_reason: str = ""  # Track why a case failed
+    metrics: Dict[str, Any] = {}  # Capture LLM usage metrics
+    tools_used: List[str] = []  # Track which MCP tools were called
 
 
-# Custom evaluator to check if both MCP tools were used
+# ============================================================================
+# Custom Evaluators
+# ============================================================================
+
+
 class UsedBothMCPTools(Evaluator[MermaidInput, MermaidOutput]):
+    """Evaluator to check if both MCP tools were used."""
+
     async def evaluate(
         self, ctx: EvaluatorContext[MermaidInput, MermaidOutput]
     ) -> float:
@@ -99,8 +252,9 @@ class UsedBothMCPTools(Evaluator[MermaidInput, MermaidOutput]):
             return 0.0
 
 
-# Custom evaluator to detect usage limit failures
 class UsageLimitNotExceeded(Evaluator[MermaidInput, MermaidOutput]):
+    """Evaluator to detect usage limit failures."""
+
     async def evaluate(
         self, ctx: EvaluatorContext[MermaidInput, MermaidOutput]
     ) -> float:
@@ -115,8 +269,9 @@ class UsageLimitNotExceeded(Evaluator[MermaidInput, MermaidOutput]):
         return 1.0
 
 
-# Custom evaluator to check if the mermaid diagram is valid
 class MermaidDiagramValid(Evaluator[MermaidInput, MermaidOutput]):
+    """Evaluator to check if the mermaid diagram is valid."""
+
     async def evaluate(
         self, ctx: EvaluatorContext[MermaidInput, MermaidOutput]
     ) -> float:
@@ -146,8 +301,18 @@ class MermaidDiagramValid(Evaluator[MermaidInput, MermaidOutput]):
             diagram_preview=input_str[:100],
         )
 
-        # Use the MCP server's validation function
-        result = await validate_mermaid_diagram(input_str)
+        # Use the MCP server's validation function with retry logic
+        try:
+            result = await exponential_backoff_retry(
+                lambda: validate_mermaid_diagram(input_str)
+            )
+        except Exception as e:
+            logfire.error(
+                "Failed to validate mermaid diagram after retries",
+                error_type=type(e).__name__,
+                error_message=str(e),
+            )
+            return 0.0
 
         if result.is_valid:
             logfire.info("Mermaid diagram validation succeeded")
@@ -157,6 +322,11 @@ class MermaidDiagramValid(Evaluator[MermaidInput, MermaidOutput]):
             )
 
         return 1.0 if result.is_valid else 0.0
+
+
+# ============================================================================
+# Core Evaluation Functions
+# ============================================================================
 
 
 async def fix_mermaid_diagram(
@@ -177,12 +347,15 @@ async def fix_mermaid_diagram(
     current_agent = create_agent(model)
     usage_limits = UsageLimits(request_limit=5)
 
-    try:
-        # Use the agent's context manager directly in this function
+    async def _run_agent():
         async with current_agent.run_mcp_servers():
-            result = await current_agent.run(query, usage_limits=usage_limits)
+            return await current_agent.run(query, usage_limits=usage_limits)
 
-        # Extract the mermaid diagram from the result output
+    try:
+        # Use retry logic for the agent run
+        result = await exponential_backoff_retry(_run_agent)
+
+        # Extract usage metrics
         usage = result.usage()
         metrics = {
             "requests": usage.requests,
@@ -199,11 +372,12 @@ async def fix_mermaid_diagram(
                 if hasattr(part, "tool_name") and part.tool_name:
                     tools_used.append(part.tool_name)
 
-        tools_used = list(dict.fromkeys(tools_used))
-
+        tools_used = list(
+            dict.fromkeys(tools_used)
+        )  # Remove duplicates while preserving order
         output = result.output
 
-        # Logic to extract the diagram from between backticks
+        # Extract the diagram from between backticks
         if "```" in output:
             start = output.find("```")
             end = output.rfind("```") + 3
@@ -229,23 +403,81 @@ async def fix_mermaid_diagram(
             tools_used=[],
         )
 
-    except Exception as e:
+    except ModelHTTPError as e:
         logfire.error(
-            "Unexpected error during mermaid diagram fix",
+            "HTTP error during mermaid diagram fix after retries",
             error_message=str(e),
-            error_type=type(e).__name__,
+            status_code=e.status_code,
+            model_name=e.model_name,
+            model=model,
+        )
+        # Return empty diagram with failure reason to indicate HTTP error
+        return MermaidOutput(
+            fixed_diagram="",
+            failure_reason=f"http_error_{e.status_code}",
+            metrics={},
+            tools_used=[],
+        )
+
+    except ValidationError as e:
+        logfire.error(
+            "Response validation error during mermaid diagram fix",
+            error_message=str(e),
+            model=model,
+        )
+        # Return empty diagram with failure reason to indicate validation failure
+        return MermaidOutput(
+            fixed_diagram="",
+            failure_reason="response_validation_failed",
+            metrics={},
+            tools_used=[],
+        )
+
+    except asyncio.TimeoutError as e:
+        logfire.error(
+            "Timeout error during mermaid diagram fix",
+            error_message=str(e),
+            model=model,
+        )
+        # Return empty diagram with failure reason to indicate timeout
+        return MermaidOutput(
+            fixed_diagram="",
+            failure_reason="agent_timeout",
+            metrics={},
+            tools_used=[],
+        )
+
+    except Exception as e:
+        # Provide more specific error categorization
+        error_type = type(e).__name__
+        if "timeout" in str(e).lower() or "timed out" in str(e).lower():
+            failure_reason = "timeout_error"
+        elif "connection" in str(e).lower() or "network" in str(e).lower():
+            failure_reason = "connection_error"
+        elif "rate limit" in str(e).lower() or "quota" in str(e).lower():
+            failure_reason = "rate_limit_error"
+        else:
+            failure_reason = f"error_{error_type}"
+
+        logfire.error(
+            "Unexpected error during mermaid diagram fix after retries",
+            error_message=str(e),
+            error_type=error_type,
+            categorized_failure_reason=failure_reason,
             model=model,
         )
         # Return empty diagram with failure reason to indicate general failure
         return MermaidOutput(
             fixed_diagram="",
-            failure_reason=f"error_{type(e).__name__}",
+            failure_reason=failure_reason,
             metrics={},
             tools_used=[],
         )
 
 
-def create_evaluation_dataset(judge_model: str = DEFAULT_MODEL):
+def create_evaluation_dataset(
+    judge_model: str = DEFAULT_MODEL,
+) -> Dataset[MermaidInput, MermaidOutput, Any]:
     """Create the dataset for evaluating mermaid diagram fixing.
 
     Args:
@@ -301,9 +533,7 @@ def create_evaluation_dataset(judge_model: str = DEFAULT_MODEL):
                 model=judge_model,
             ),
             LLMJudge(
-                rubric="The fixed_diagram field should maintain the same overall structure and intent as the expected output diagram while fixing any syntax errors."
-                + "Check if nodes, connections, and labels are preserved."
-                + "The current time placeholder should be replaced with a valid datetime. Ignore the metrics, failure_reason, and tools_used fields.",
+                rubric="The fixed_diagram field should maintain the same overall structure and intent as the expected output diagram while fixing any syntax errors. Check if nodes, connections, and labels are preserved. The current time placeholder should be replaced with a valid datetime. Ignore the metrics, failure_reason, and tools_used fields.",
                 include_input=False,
                 model=judge_model,
             ),
@@ -311,13 +541,20 @@ def create_evaluation_dataset(judge_model: str = DEFAULT_MODEL):
     )
 
 
-def get_timestamp_prefix():
+# ============================================================================
+# Utility Functions
+# ============================================================================
+
+
+def get_timestamp_prefix() -> str:
     """Get a timestamp prefix in the format yyyy-mm-dd_H-M-s."""
     now = datetime.now()
     return now.strftime("%Y-%m-%d_%H-%M-%S")
 
 
-def write_mermaid_results_to_csv(report, model: str, output_dir="./mermaid_results"):
+def write_mermaid_results_to_csv(
+    report: EvaluationReport, model: str, output_dir: str = "./mermaid_results"
+) -> str:
     """Write mermaid evaluation results with metrics to a CSV file.
 
     Args:
@@ -335,6 +572,7 @@ def write_mermaid_results_to_csv(report, model: str, output_dir="./mermaid_resul
         output_dir, f"{timestamp}_mermaid_results_{model.replace(':', '_')}.csv"
     )
 
+    # Collect all unique evaluator and metric names
     all_evaluator_names = set()
     all_metric_names = set()
 
@@ -343,6 +581,7 @@ def write_mermaid_results_to_csv(report, model: str, output_dir="./mermaid_resul
         if hasattr(case.output, "metrics") and case.output.metrics:
             all_metric_names.update(case.output.metrics.keys())
 
+    # Build CSV headers
     headers = [
         "Model",
         "Case",
@@ -358,6 +597,7 @@ def write_mermaid_results_to_csv(report, model: str, output_dir="./mermaid_resul
     for metric in sorted(all_metric_names):
         headers.append(f"Metric_{metric}")
 
+    # Write the CSV file
     with open(filepath, "w", newline="", encoding="utf-8") as csvfile:
         writer = csv.writer(csvfile)
         writer.writerow(headers)
@@ -376,12 +616,14 @@ def write_mermaid_results_to_csv(report, model: str, output_dir="./mermaid_resul
                 else "",
             ]
 
+            # Add evaluator scores
             for evaluator in sorted(all_evaluator_names):
                 if evaluator in case.scores:
                     row.append(case.scores[evaluator].value)
                 else:
                     row.append("")
 
+            # Add metrics
             for metric in sorted(all_metric_names):
                 if (
                     case.output
@@ -403,17 +645,24 @@ def write_mermaid_results_to_csv(report, model: str, output_dir="./mermaid_resul
     return filepath
 
 
+# ============================================================================
+# Single Model Evaluation Function
+# ============================================================================
+
+
 async def run_evaluations(
     model: str = DEFAULT_MODEL,
     judge_model: str = DEFAULT_MODEL,
     export_csv: bool = True,
-):
+    output_dir: str = "./mermaid_results",
+) -> EvaluationReport:
     """Run the evaluations on the mermaid diagram fixing task.
 
     Args:
         model: The model to use for the agent
         judge_model: The model to use for LLM judging
         export_csv: Whether to export results to CSV
+        output_dir: Directory to save results
 
     Returns:
         The evaluation report
@@ -433,11 +682,15 @@ async def run_evaluations(
     report.print(include_input=False, include_output=False)
 
     if export_csv:
-        csv_path = write_mermaid_results_to_csv(report, model)
+        csv_path = write_mermaid_results_to_csv(report, model, output_dir)
         print(f"Results exported to: {csv_path}")
 
     return report
 
+
+# ============================================================================
+# Main Execution (for standalone use)
+# ============================================================================
 
 if __name__ == "__main__":
     # You can use different models for the agent and the judge

@@ -101,7 +101,8 @@ async def validate_mermaid_diagram(diagram_text: str) -> MermaidValidationResult
             if file_path and os.path.exists(file_path):
                 try:
                     os.unlink(file_path)
-                except:
+                except OSError:
+                    # Ignore file deletion errors during cleanup
                     pass
 
 
