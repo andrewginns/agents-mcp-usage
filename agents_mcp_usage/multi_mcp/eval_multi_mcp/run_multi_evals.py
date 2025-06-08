@@ -207,19 +207,33 @@ class MultiModelEvaluator:
             logfire.warning(
                 "Evaluation timeout", model=model, run_index=run_index, timeout=timeout
             )
-            self.results[model].add_failed_run(run_index, error_msg)
+            self.results[model].add_failed_run(run_index, "evaluation_timeout")
             return None
 
         except Exception as e:
+            # Categorize the error for better reporting
+            error_type = type(e).__name__
+            if "ValidationError" in error_type:
+                categorized_error = "evaluation_validation_failed"
+            elif "timeout" in str(e).lower() or "timed out" in str(e).lower():
+                categorized_error = "evaluation_timeout"
+            elif "ModelHTTPError" in error_type:
+                categorized_error = "model_api_error"
+            elif "ConnectionError" in error_type or "network" in str(e).lower():
+                categorized_error = "network_error"
+            else:
+                categorized_error = f"evaluation_error_{error_type}"
+
             error_msg = f"Error during evaluation: {str(e)}"
             logfire.error(
                 "Evaluation error",
                 model=model,
                 run_index=run_index,
                 error=str(e),
-                error_type=type(e).__name__,
+                error_type=error_type,
+                categorized_error=categorized_error,
             )
-            self.results[model].add_failed_run(run_index, error_msg)
+            self.results[model].add_failed_run(run_index, categorized_error)
             return None
 
     async def run_model_evaluations(
@@ -442,7 +456,7 @@ async def main():
     parser.add_argument(
         "--parallel",
         action="store_true",
-        default=False,
+        default=True,
         help="Run evaluations in parallel",
     )
     parser.add_argument(

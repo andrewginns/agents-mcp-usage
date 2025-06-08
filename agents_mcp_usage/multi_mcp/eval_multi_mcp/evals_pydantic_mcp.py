@@ -1,4 +1,3 @@
-#!/usr/bin/env python3
 """
 Single-Model Evaluation Module for Mermaid Diagram Fixing
 
