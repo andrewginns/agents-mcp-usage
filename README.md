@@ -1,4 +1,4 @@
-# Model Context Protocol (MCP) Agent Frameworks Demo
+# Model Context Protocol (MCP) Agent Frameworks Demo & Benchmarking Platform
 
 This repository demonstrates LLM Agents using tools from Model Context Protocol (MCP) servers with several frameworks:
 - Google Agent Development Kit (ADK)
@@ -6,10 +6,13 @@ This repository demonstrates LLM Agents using tools from Model Context Protocol 
 - OpenAI Agents
 - Pydantic-AI Agents
 
-Both single and multiple MCP server examples are demonstrated
-- [Agent with a single MCP server](agents_mcp_usage/basic_mcp/README.md)
-- [Agent with multiple MCP servers](agents_mcp_usage/multi_mcp/README.md)
-  - Also includes Agent evaluations
+## Repository Structure
+
+- [Agent with a single MCP server](agents_mcp_usage/basic_mcp/README.md) - Learning examples and basic patterns
+- [Agent with multiple MCP servers](agents_mcp_usage/multi_mcp/README.md) - Advanced usage with comprehensive evaluation suite
+  - **Evaluation Dashboard**: Interactive Streamlit UI for model comparison
+  - **Multi-Model Benchmarking**: Parallel/sequential evaluation across multiple LLMs
+  - **Rich Metrics**: Usage analysis, cost comparison, and performance leaderboards
 
 The repo also includes Python MCP Servers:
 - [`example_server.py`](mcp_servers/example_server.py) based on [MCP Python SDK Quickstart](https://github.com/modelcontextprotocol/python-sdk/blob/b4c7db6a50a5c88bae1db5c1f7fba44d16eebc6e/README.md?plain=1#L104) - Modified to include a datetime tool and run as a server invoked by Agents
@@ -217,9 +220,58 @@ uv run agents_mcp_usage/multi_mcp/multi_mcp_use/pydantic_mcp.py
 
 # Run the multi-MCP evaluation
 uv run agents_mcp_usage/multi_mcp/eval_multi_mcp/evals_pydantic_mcp.py
+
+# Run multi-model benchmarking
+uv run agents_mcp_usage/multi_mcp/eval_multi_mcp/run_multi_evals.py --models "gemini-2.5-pro,gemini-2.0-flash" --runs 5 --parallel
+
+# Launch the evaluation dashboard
+uv run streamlit run agents_mcp_usage/multi_mcp/eval_multi_mcp/merbench_ui.py
 ```
 
 More details on multi-MCP implementation can be found in the [multi_mcp README](agents_mcp_usage/multi_mcp/README.md).
+
+## Evaluation Suite & Benchmarking Dashboard
+
+This repository includes a comprehensive evaluation system for benchmarking LLM agent performance across multiple frameworks and models. The evaluation suite tests agents on mermaid diagram correction tasks using multiple MCP servers, providing rich metrics and analysis capabilities.
+
+### Key Evaluation Features
+
+- **Multi-Level Difficulty**: Easy, medium, and hard test cases for comprehensive assessment
+- **Multi-Model Benchmarking**: Parallel or sequential evaluation across multiple LLM models
+- **Interactive Dashboard**: Streamlit-based UI for visualising results, cost analysis, and model comparison
+- **Rich Metrics Collection**: Token usage, cost analysis, success rates, and failure categorisation
+- **Robust Error Handling**: Comprehensive retry logic and detailed failure analysis
+- **Export Capabilities**: CSV results for downstream analysis and reporting
+
+### Dashboard Features
+
+The included Streamlit dashboard (`merbench_ui.py`) provides:
+
+- **Model Leaderboards**: Performance rankings by accuracy, cost efficiency, and speed
+- **Cost Analysis**: Detailed cost breakdowns and cost-per-success metrics
+- **Failure Analysis**: Categorised failure reasons with debugging insights
+- **Performance Trends**: Visualisation of model behaviour across difficulty levels
+- **Resource Usage**: Token consumption and API call patterns
+- **Comparative Analysis**: Side-by-side model performance comparison
+
+### Quick Evaluation Commands
+
+```bash
+# Single model evaluation
+uv run agents_mcp_usage/multi_mcp/eval_multi_mcp/evals_pydantic_mcp.py
+
+# Multi-model parallel benchmarking
+uv run agents_mcp_usage/multi_mcp/eval_multi_mcp/run_multi_evals.py \
+  --models "gemini-2.5-pro,gemini-2.0-flash,gemini-2.5-flash-preview-04-17" \
+  --runs 5 \
+  --parallel \
+  --output-dir ./results
+
+# Launch interactive dashboard
+uv run streamlit run agents_mcp_usage/multi_mcp/eval_multi_mcp/merbench_ui.py
+```
+
+The evaluation system enables robust, repeatable benchmarking across LLM models and agent frameworks, supporting both research and production model selection decisions.
 
 ## What is MCP?
 
