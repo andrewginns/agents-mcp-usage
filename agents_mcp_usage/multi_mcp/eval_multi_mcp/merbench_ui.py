@@ -8,6 +8,8 @@ from typing import List, Dict
 import json
 import re
 from pydantic import ValidationError
+import csv
+import io
 
 from agents_mcp_usage.multi_mcp.eval_multi_mcp.dashboard_config import (
     DEFAULT_CONFIG,
@@ -27,15 +29,37 @@ st.set_page_config(
     page_title=EVAL_CONFIG.title, page_icon=EVAL_CONFIG.icon, layout="wide"
 )
 
-# Default model costs (per 1M tokens)
-DEFAULT_COSTS = {
-    "gemini-2.5-pro-preview-06-05": {"input": 3.50, "output": 10.50},
-    "gemini-2.0-flash": {"input": 0.075, "output": 0.30},
-    "gemini-2.5-flash-preview-04-17": {"input": 0.075, "output": 0.30},
-    "openai:o4-mini": {"input": 0.15, "output": 0.60},
-    "openai:gpt-4.1-mini": {"input": 0.15, "output": 0.60},
-    "openai:gpt-4.1": {"input": 2.50, "output": 10.00},
-}
+# --- Cost Loading ---
+
+
+def load_model_costs(file_path: str) -> Dict:
+    """Loads model costs from a CSV file and returns a structured dictionary."""
+    try:
+        with open(file_path, "r", encoding="utf-8") as f:
+            # Read lines, skipping comments and empty lines
+            lines = [
+                line for line in f if not line.strip().startswith("#") and line.strip()
+            ]
+
+            # Find the start of the dictionary-like definition
+            dict_str = "".join(lines)
+            match = re.search(r"MODEL_COSTS\s*=\s*({.*})", dict_str, re.DOTALL)
+            if not match:
+                st.error(f"Could not find 'MODEL_COSTS' dictionary in {file_path}")
+                return {}
+
+            # Safely evaluate the dictionary string
+            model_costs_raw = eval(match.group(1), {"float": float})
+
+            return model_costs_raw
+
+    except FileNotFoundError:
+        st.warning(f"Cost file not found at {file_path}. Using empty cost config.")
+        return {}
+    except (SyntaxError, NameError, Exception) as e:
+        st.error(f"Error parsing cost file {file_path}: {e}")
+        return {}
+
 
 # --- Data Loading and Processing ---
 
@@ -112,10 +136,18 @@ def parse_metric_details(metric_details_str: str) -> Dict:
         return {}
 
 
+def get_price_for_tokens(token_count: int, price_tiers: List[Dict]) -> float:
+    """Finds the correct price for a given number of tokens from a list of tiers."""
+    for tier in price_tiers:
+        if token_count <= tier["up_to"]:
+            return tier["price"]
+    return price_tiers[-1]["price"]  # Fallback to the highest tier price
+
+
 def calculate_costs(
     df: pd.DataFrame, cost_config: Dict, eval_config: Dict
 ) -> pd.DataFrame:
-    """Calculates input, output, and total costs for each run based on eval config."""
+    """Calculates input, output, and total costs for each run based on new tiered pricing."""
     df_with_costs = df.copy()
     cost_calc_config = eval_config.get("cost_calculation", {})
     input_token_cols = cost_calc_config.get("input_token_cols", [])
@@ -127,21 +159,56 @@ def calculate_costs(
 
     for idx, row in df_with_costs.iterrows():
         model = row.get("Model")
-        if model in cost_config:
-            try:
-                input_tokens = sum(row.get(col, 0) or 0 for col in input_token_cols)
-                output_tokens = sum(row.get(col, 0) or 0 for col in output_token_cols)
+        model_costs = cost_config.get(model)
 
-                input_cost = (input_tokens / 1_000_000) * cost_config[model]["input"]
-                output_cost = (output_tokens / 1_000_000) * cost_config[model]["output"]
+        if not model_costs:
+            continue
 
-                df_with_costs.at[idx, "input_cost"] = input_cost
-                df_with_costs.at[idx, "output_cost"] = output_cost
-                df_with_costs.at[idx, "total_cost"] = input_cost + output_cost
-            except (TypeError, KeyError) as e:
-                st.warning(
-                    f"Cost calculation error for model {model} at row {idx}: {e}"
+        try:
+            input_tokens = sum(row.get(col, 0) or 0 for col in input_token_cols)
+            output_tokens = sum(row.get(col, 0) or 0 for col in output_token_cols)
+            thinking_tokens = row.get("thinking_tokens", 0) or 0
+            non_thinking_output_tokens = output_tokens - thinking_tokens
+
+            total_tokens = input_tokens + output_tokens
+
+            # Determine input cost
+            input_price_tiers = model_costs.get("input", [])
+            input_price = get_price_for_tokens(total_tokens, input_price_tiers)
+            input_cost = (input_tokens / 1_000_000) * input_price
+
+            # Determine output cost
+            output_cost = 0
+            output_pricing = model_costs.get("output", {})
+
+            if "thinking" in output_pricing and thinking_tokens > 0:
+                thinking_price_tiers = output_pricing["thinking"]
+                thinking_price = get_price_for_tokens(
+                    total_tokens, thinking_price_tiers
                 )
+                output_cost += (thinking_tokens / 1_000_000) * thinking_price
+
+            if "non_thinking" in output_pricing and non_thinking_output_tokens > 0:
+                non_thinking_price_tiers = output_pricing["non_thinking"]
+                non_thinking_price = get_price_for_tokens(
+                    total_tokens, non_thinking_price_tiers
+                )
+                output_cost += (
+                    non_thinking_output_tokens / 1_000_000
+                ) * non_thinking_price
+
+            elif "default" in output_pricing:
+                default_price_tiers = output_pricing["default"]
+                default_price = get_price_for_tokens(total_tokens, default_price_tiers)
+                output_cost += (output_tokens / 1_000_000) * default_price
+
+            df_with_costs.at[idx, "input_cost"] = input_cost
+            df_with_costs.at[idx, "output_cost"] = output_cost
+            df_with_costs.at[idx, "total_cost"] = input_cost + output_cost
+
+        except (TypeError, KeyError, IndexError) as e:
+            st.warning(f"Cost calculation error for model {model} at row {idx}: {e}")
+
     return df_with_costs
 
 
@@ -175,6 +242,15 @@ def process_data(
     processed_df["total_response_tokens"] = (
         processed_df.get("Metric_response_tokens", 0) + processed_df["thinking_tokens"]
     )
+
+    # Calculate total tokens for leaderboard
+    cost_calc_config = eval_config.cost_calculation
+    input_token_cols = cost_calc_config.input_token_cols
+    output_token_cols = cost_calc_config.output_token_cols
+
+    processed_df["total_tokens"] = 0
+    for col in input_token_cols + output_token_cols:
+        processed_df["total_tokens"] += processed_df.get(col, 0).fillna(0)
 
     # Standardize primary metric score
     primary_metric_config = eval_config.primary_metric
@@ -228,7 +304,7 @@ def create_leaderboard(
         "Correct": (primary_metric_name, "mean"),
         "Cost": ("total_cost", "mean"),
         "Duration": ("Duration", "mean"),
-        "Tokens": ("total_response_tokens", "mean"),
+        "Avg Total Tokens": ("total_tokens", "mean"),
         "Runs": ("Model", "size"),
     }
 
@@ -459,7 +535,7 @@ def main():
     st.subheader("LLM Evaluation Benchmark Dashboard")
 
     # --- Sidebar Setup ---
-    st.sidebar.header("⚙️ Configuration")
+    st.sidebar.header("⚙️ Data Configuration")
 
     # File selection
     default_dir_path = (
@@ -493,40 +569,85 @@ def main():
         st.error("No data loaded. Please check the selected files.")
         return
 
-    available_models = sorted(df_initial["Model"].unique())
-
-    # Cost configuration in sidebar
-    st.sidebar.subheader("💰 Cost Configuration")
-    cost_config = {}
-    with st.sidebar.expander("Edit Model Costs (per 1M tokens)", expanded=False):
-        for model in available_models:
-            cols = st.columns(2)
-            default = DEFAULT_COSTS.get(model, {"input": 0.0, "output": 0.0})
-            input_cost = cols[0].number_input(
-                f"{model} Input",
-                value=float(default["input"]),
-                step=0.01,
-                format="%.2f",
-            )
-            output_cost = cols[1].number_input(
-                f"{model} Output",
-                value=float(default["output"]),
-                step=0.01,
-                format="%.2f",
-            )
-            cost_config[model] = {"input": input_cost, "output": output_cost}
-
-    df = process_data(df_initial, cost_config, eval_config)
-
     # Grouping filter
     grouping_config = eval_config.grouping
     st.sidebar.subheader(f"🎯 {grouping_config.label} Filter")
-    available_groups = sorted(df[grouping_config.target_column].unique())
+
+    # Ensure the target column exists before trying to access it
+    if grouping_config.target_column not in df_initial.columns:
+        df_initial = extract_grouping_column(df_initial, eval_config.model_dump())
+
+    available_groups = sorted(df_initial[grouping_config.target_column].unique())
     selected_groups = st.sidebar.multiselect(
         f"Filter by {grouping_config.label.lower()}:",
         options=available_groups,
         default=available_groups,
     )
+
+    # Cost configuration in sidebar
+    st.sidebar.subheader("💰 Cost Configuration")
+    cost_file_path = os.path.join(os.path.dirname(__file__), "costs.csv")
+    model_costs = load_model_costs(cost_file_path)
+    available_models = sorted(df_initial["Model"].unique())
+
+    cost_config = {}
+    user_cost_override = {}
+
+    with st.sidebar.expander("Edit Model Costs (per 1M tokens)", expanded=False):
+        for model in available_models:
+            if model in model_costs:
+                cost_config[model] = model_costs[model]
+            else:
+                st.warning(f"No cost data found for model: {model}. Using zeros.")
+                cost_config[model] = {
+                    "input": [{"up_to": float("inf"), "price": 0.0}],
+                    "output": {"default": [{"up_to": float("inf"), "price": 0.0}]},
+                }
+
+        st.markdown("---")
+        st.markdown("Override costs below (optional, simplified):")
+
+        for model in available_models:
+            cols = st.columns(2)
+            default_input = (
+                cost_config.get(model, {}).get("input", [{}])[0].get("price", 0.0)
+            )
+            output_pricing = cost_config.get(model, {}).get("output", {})
+            if "default" in output_pricing:
+                default_output = output_pricing["default"][0].get("price", 0.0)
+            elif "non_thinking" in output_pricing:
+                default_output = output_pricing["non_thinking"][0].get("price", 0.0)
+            else:
+                default_output = 0.0
+
+            input_cost = cols[0].number_input(
+                f"{model} Input",
+                value=float(default_input),
+                step=0.01,
+                format="%.4f",
+                key=f"{model}_input_cost",
+            )
+            output_cost = cols[1].number_input(
+                f"{model} Output",
+                value=float(default_output),
+                step=0.01,
+                format="%.4f",
+                key=f"{model}_output_cost",
+            )
+
+            if input_cost != default_input or output_cost != default_output:
+                user_cost_override[model] = {
+                    "input": [{"up_to": float("inf"), "price": input_cost}],
+                    "output": {
+                        "default": [{"up_to": float("inf"), "price": output_cost}]
+                    },
+                }
+
+    # Apply overrides
+    final_cost_config = cost_config.copy()
+    final_cost_config.update(user_cost_override)
+
+    df = process_data(df_initial, final_cost_config, eval_config)
 
     # --- Main Panel ---
     st.header("📊 Overview")
@@ -566,7 +687,9 @@ def main():
                 "Duration": st.column_config.NumberColumn(
                     "Avg Duration (s)", format="%.2fs"
                 ),
-                "Tokens": st.column_config.NumberColumn("Avg Tokens", format="%.0f"),
+                "Avg Total Tokens": st.column_config.NumberColumn(
+                    "Avg Total Tokens", format="%.0f"
+                ),
             },
             use_container_width=True,
         )
