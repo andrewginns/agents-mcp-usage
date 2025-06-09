@@ -21,7 +21,7 @@ logfire.instrument_mcp()
 # Create server parameters for stdio connection
 server = StdioServerParameters(
     command="uv",
-            args=["run", "mcp_servers/example_server.py", "stdio"],
+    args=["run", "mcp_servers/example_server.py", "stdio"],
 )
 
 model = ChatGoogleGenerativeAI(
@@ -30,11 +30,13 @@ model = ChatGoogleGenerativeAI(
 
 
 async def main(query: str = "Greet Andrew and give him the current time") -> None:
-    """
-    Main function to run the agent
+    """Runs the LangGraph agent with a given query.
+
+    This function connects to the MCP server, loads the tools, creates a
+    LangGraph agent, and invokes it with the provided query.
 
     Args:
-        query (str): The query to run the agent with
+        query: The query to run the agent with.
     """
     async with stdio_client(server) as (read, write):
         async with ClientSession(read, write) as session:

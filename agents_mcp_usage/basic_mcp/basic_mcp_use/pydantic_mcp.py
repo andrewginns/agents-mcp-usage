@@ -25,11 +25,13 @@ Agent.instrument_all()
 
 
 async def main(query: str = "Greet Andrew and give him the current time") -> None:
-    """
-    Main function to run the agent
+    """Runs the Pydantic agent with a given query.
+
+    This function runs the Pydantic agent with the provided query and prints the
+    output.
 
     Args:
-        query (str): The query to run the agent with
+        query: The query to run the agent with.
     """
     async with agent.run_mcp_servers():
         result = await agent.run(query)

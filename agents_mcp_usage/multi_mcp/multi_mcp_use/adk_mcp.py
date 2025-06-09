@@ -24,8 +24,16 @@ logfire.configure(send_to_logfire="if-token-present", service_name="adk-multi-mc
 logfire.instrument_mcp()
 
 
-async def get_tools_async():
-    """Initializes connections to MCP servers and returns their tools along with a combined exit stack."""
+async def get_tools_async() -> tuple[list, contextlib.AsyncExitStack]:
+    """Initializes connections to MCP servers and returns their tools.
+
+    This function connects to the local example server and the mermaid
+    validator server, and returns the combined tools and a combined exit
+    stack for cleanup.
+
+    Returns:
+        A tuple containing the list of all tools and the combined exit stack.
+    """
     print("Connecting to MCP servers...")
 
     # Create a single exit stack for all connections
@@ -71,19 +79,22 @@ async def get_tools_async():
 
 
 async def main(query: str = "Hi!", request_limit: int = 5) -> None:
-    """
-    Main function to run the agent
+    """Runs the agent with a given query and request limit.
+
+    This function initializes the tools, creates an agent, and runs it with
+    the provided query and request limit. It also handles the cleanup of
+    the MCP server connections and Logfire.
 
     Args:
-        query (str): The query to run the agent with
-        request_limit (int): The number of requests to make to the MCP servers
+        query: The query to run the agent with.
+        request_limit: The number of requests to make to the MCP servers.
     """
     # Get tools from MCP servers
     tools, exit_stack = await get_tools_async()
 
     # Create agent with tools
     agent = LlmAgent(
-        model="gemini-2.5-pro-preview-03-25",
+        model="gemini-2.5-pro-preview-05-06",
         name="multi_mcp_adk",
         tools=tools,
     )

@@ -1,4 +1,5 @@
 import asyncio
+from typing import Any
 
 import logfire
 from dotenv import load_dotenv
@@ -33,20 +34,25 @@ mermaid_server = MCPServerStdio(
 )
 # Create Agent with MCP servers
 agent = Agent(
-    "gemini-2.5-pro-preview-03-25",
+    "gemini-2.5-pro-preview-05-06",
     # "openai:o4-mini",
     mcp_servers=[local_server, mermaid_server],
 )
 Agent.instrument_all()
 
 
-async def main(query: str = "Hi!", request_limit: int = 5) -> None:
-    """
-    Main function to run the agent
+async def main(query: str = "Hi!", request_limit: int = 5) -> Any:
+    """Runs the Pydantic agent with a given query and request limit.
+
+    This function invokes the Pydantic agent with the provided query and
+    usage limits, and prints the output.
 
     Args:
-        query (str): The query to run the agent with
-        request_limit (int): The number of requests to make to the MCP servers
+        query: The query to run the agent with.
+        request_limit: The number of requests to make to the MCP servers.
+
+    Returns:
+        The result of the agent run.
     """
     # Set a request limit for LLM calls
     usage_limits = UsageLimits(request_limit=request_limit)

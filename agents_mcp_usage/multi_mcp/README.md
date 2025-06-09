@@ -1,8 +1,9 @@
-# Multi-MCP Usage
+# Multi-MCP Usage & Evaluation Suite
 
-This directory contains examples demonstrating the integration of tools from multiple Model Context Protocol (MCP) servers with various LLM agent frameworks.
+This directory contains examples demonstrating the integration of tools from multiple Model Context Protocol (MCP) servers with various LLM agent frameworks, along with a comprehensive evaluation and benchmarking system.
 
-Agents utilising multiple MCP servers can be dramatically more complex than an Agent using a single server. This is because as the number of servers grow the number of tools that the Agent must reason on when and how to use increases. As a result this component not only demonstrates an Agent's use of multiple MCP servers, but also includes evaluations to validate that they are being used to successfully accomplish the task according to various evaluation criterias.
+Agents utilising multiple MCP servers can be dramatically more complex than an Agent using a single server. This is because as the number of servers grow the number of tools that the Agent must reason on when and how to use increases. As a result this component not only demonstrates an Agent's use of multiple MCP servers, but also includes a production-ready evaluation suite to validate performance, analyse costs, and compare models across multiple difficulty levels.
+
 
 
 ## Quickstart
@@ -22,9 +23,15 @@ Agents utilising multiple MCP servers can be dramatically more complex than an A
    
    # Run the multi-MCP evaluation
    uv run agents_mcp_usage/multi_mcp/eval_multi_mcp/evals_pydantic_mcp.py
+   
+   # Run multi-model benchmarking
+   uv run agents_mcp_usage/multi_mcp/eval_multi_mcp/run_multi_evals.py --models "gemini-2.5-pro,gemini-2.0-flash" --runs 5 --parallel
+   
+   # Launch the evaluation dashboard
+   uv run streamlit run agents_mcp_usage/multi_mcp/eval_multi_mcp/merbench_ui.py
    ```
 
-5. Check the console output or Logfire for results.
+5. Check the console output, Logfire, or dashboard for results.
 
 
 ### Multi-MCP Architecture
@@ -179,6 +186,92 @@ Research in LLM agent development has identified tool overload as a significant 
 4. **Reasoning Overhead**: The agent must dedicate more of its context window and reasoning capacity to tool management rather than task completion.
 
 The evaluation framework included in this component is essential for validating that agents can effectively navigate the increased complexity of multiple MCP servers. By measuring success against specific evaluation criteria, developers can ensure that the benefits of tool specialisation outweigh the potential pitfalls of tool overload.
+
+## Comprehensive Evaluation Suite
+
+The `eval_multi_mcp/` directory contains a production-ready evaluation system for benchmarking LLM agent performance across multiple frameworks and models. The suite tests agents on mermaid diagram correction tasks using multiple MCP servers, providing rich metrics and analysis capabilities.
+
+### Evaluation Components
+
+#### Core Modules
+- **`evals_pydantic_mcp.py`** - Single-model evaluation with comprehensive metrics collection
+- **`run_multi_evals.py`** - Multi-model parallel/sequential benchmarking with CSV export
+- **`merbench_ui.py`** - Interactive Streamlit dashboard for visualisation and analysis
+- **`dashboard_config.py`** - Configuration-driven UI setup for flexible dashboard customisation
+- **`costs.csv`** - Pricing integration for cost analysis and budget planning
+
+#### Test Difficulty Levels
+The evaluation includes three test cases of increasing complexity:
+1. **Easy** - Simple syntax errors in mermaid diagrams
+2. **Medium** - More complex structural issues requiring deeper reasoning
+3. **Hard** - Advanced mermaid syntax problems testing sophisticated tool usage
+
+#### Evaluation Metrics
+The system captures five key performance indicators:
+- **UsedBothMCPTools** - Validates proper coordination between multiple MCP servers
+- **UsageLimitNotExceeded** - Monitors resource consumption and efficiency
+- **MermaidDiagramValid** - Assesses technical correctness of outputs
+- **LLMJudge (Format)** - Evaluates response formatting and structure
+- **LLMJudge (Structure)** - Measures preservation of original diagram intent
+
+## Interactive Dashboard & Visualisation
+
+The Streamlit-based dashboard (`merbench_ui.py`) provides comprehensive analysis and comparison capabilities:
+
+### Dashboard Features
+- **Model Leaderboards** - Performance rankings by accuracy, cost efficiency, and execution speed
+- **Cost Analysis** - Detailed cost breakdowns with cost-per-success metrics and budget projections
+- **Failure Analysis** - Categorised failure reasons with debugging insights and error patterns
+- **Performance Trends** - Visualisation of model behaviour across difficulty levels and test iterations
+- **Resource Usage** - Token consumption patterns and API call efficiency metrics
+- **Comparative Analysis** - Side-by-side model performance comparison with statistical significance
+
+### Dashboard Quick Launch
+```bash
+# Launch the interactive evaluation dashboard
+uv run streamlit run agents_mcp_usage/multi_mcp/eval_multi_mcp/merbench_ui.py
+```
+
+The dashboard automatically loads evaluation results from the `mermaid_eval_results/` directory, providing immediate insights into model performance and cost efficiency.
+
+## Multi-Model Benchmarking
+
+The `run_multi_evals.py` script enables systematic comparison across multiple LLM models with flexible execution options:
+
+### Benchmarking Features
+- **Parallel Execution** - Simultaneous evaluation across models for faster results
+- **Sequential Mode** - Conservative execution for resource-constrained environments
+- **Configurable Runs** - Multiple iterations per model for statistical reliability
+- **Comprehensive Error Handling** - Robust retry logic with exponential backoff
+- **CSV Export** - Structured results for downstream analysis and reporting
+
+### Example Benchmarking Commands
+
+```bash
+# Parallel benchmarking across multiple models
+uv run agents_mcp_usage/multi_mcp/eval_multi_mcp/run_multi_evals.py \
+  --models "gemini-2.5-pro,gemini-2.0-flash,gemini-2.5-flash-preview-04-17" \
+  --runs 5 \
+  --parallel \
+  --timeout 600 \
+  --output-dir ./benchmark_results
+
+# Sequential execution with custom judge model
+uv run agents_mcp_usage/multi_mcp/eval_multi_mcp/run_multi_evals.py \
+  --models "gemini-2.5-pro,claude-3-opus" \
+  --runs 3 \
+  --sequential \
+  --judge-model "gemini-2.5-pro" \
+  --output-dir ./comparative_analysis
+```
+
+### Output Structure
+Results are organised with timestamped files:
+- **Individual model results** - `YYYY-MM-DD_HH-MM-SS_individual_{model}.csv`
+- **Combined analysis** - `YYYY-MM-DD_HH-MM-SS_combined_results.csv`
+- **Dashboard integration** - Automatic loading into visualisation interface
+
+The evaluation system enables robust, repeatable benchmarking across LLM models and agent frameworks, supporting both research investigations and production model selection decisions.
 
 ## Example Files
 
