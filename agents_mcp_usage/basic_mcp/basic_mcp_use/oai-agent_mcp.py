@@ -14,11 +14,13 @@ logfire.instrument_openai_agents()
 
 
 async def main(query: str = "Greet Andrew and give him the current time") -> None:
-    """
-    Main function to run the agent
+    """Runs the OpenAI agent with a given query.
+
+    This function creates an MCP server, initializes an OpenAI agent with the
+    server, and runs the agent with the provided query.
 
     Args:
-        query (str): The query to run the agent with
+        query: The query to run the agent with.
     """
     # Create and use the MCP server in an async context
     async with MCPServerStdio(

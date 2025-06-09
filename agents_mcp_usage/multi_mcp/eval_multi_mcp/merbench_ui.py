@@ -30,7 +30,14 @@ st.set_page_config(
 
 
 def load_model_costs(file_path: str) -> Dict:
-    """Loads model costs from a CSV file and returns a structured dictionary."""
+    """Loads model costs from a CSV file and returns a structured dictionary.
+
+    Args:
+        file_path: The path to the cost file.
+
+    Returns:
+        A dictionary containing the model costs.
+    """
     try:
         with open(file_path, "r", encoding="utf-8") as f:
             # Read lines, skipping comments and empty lines
@@ -62,7 +69,14 @@ def load_model_costs(file_path: str) -> Dict:
 
 
 def find_all_combined_results_csvs(directory_path: str) -> list[str]:
-    """Finds all '*_combined_results.csv' files, sorted by modification time."""
+    """Finds all '*_combined_results.csv' files, sorted by modification time.
+
+    Args:
+        directory_path: The path to the directory to search.
+
+    Returns:
+        A list of CSV file paths.
+    """
     if not os.path.isdir(directory_path):
         return []
     try:
@@ -75,7 +89,14 @@ def find_all_combined_results_csvs(directory_path: str) -> list[str]:
 
 
 def detect_csv_files(directory: str = None) -> List[str]:
-    """Detect CSV result files in the specified directory."""
+    """Detects CSV result files in the specified directory.
+
+    Args:
+        directory: The directory to search for CSV files.
+
+    Returns:
+        A list of detected CSV file paths.
+    """
     if directory is None:
         # Go up three levels from the current script to the project root
         script_dir = os.path.dirname(os.path.abspath(__file__))
@@ -85,7 +106,14 @@ def detect_csv_files(directory: str = None) -> List[str]:
 
 
 def load_csv_data(file_paths: List[str]) -> pd.DataFrame:
-    """Load and combine multiple CSV files into a single DataFrame."""
+    """Loads and combines multiple CSV files into a single DataFrame.
+
+    Args:
+        file_paths: A list of paths to the CSV files.
+
+    Returns:
+        A pandas DataFrame containing the combined data.
+    """
     if not file_paths:
         return pd.DataFrame()
 
@@ -109,7 +137,15 @@ def load_csv_data(file_paths: List[str]) -> pd.DataFrame:
 
 
 def extract_grouping_column(df: pd.DataFrame, config: Dict) -> pd.DataFrame:
-    """Extracts a grouping column based on regex from the config."""
+    """Extracts a grouping column based on a regex from the config.
+
+    Args:
+        df: The DataFrame to process.
+        config: The dashboard configuration.
+
+    Returns:
+        The DataFrame with the new grouping column.
+    """
     source_col = config["grouping"]["column"]
     target_col = config["grouping"]["target_column"]
     regex = config["grouping"]["extractor_regex"]
@@ -123,7 +159,14 @@ def extract_grouping_column(df: pd.DataFrame, config: Dict) -> pd.DataFrame:
 
 
 def parse_metric_details(metric_details_str: str) -> Dict:
-    """Safely parses a JSON string from the 'Metric_details' column."""
+    """Safely parses a JSON string from the 'Metric_details' column.
+
+    Args:
+        metric_details_str: The JSON string to parse.
+
+    Returns:
+        A dictionary containing the parsed data.
+    """
     if pd.isna(metric_details_str) or not metric_details_str:
         return {}
     try:
@@ -134,7 +177,15 @@ def parse_metric_details(metric_details_str: str) -> Dict:
 
 
 def get_price_for_tokens(token_count: int, price_tiers: List[Dict]) -> float:
-    """Finds the correct price for a given number of tokens from a list of tiers."""
+    """Finds the correct price for a given number of tokens from a list of tiers.
+
+    Args:
+        token_count: The number of tokens.
+        price_tiers: A list of price tiers.
+
+    Returns:
+        The price for the given number of tokens.
+    """
     for tier in price_tiers:
         if token_count <= tier["up_to"]:
             return tier["price"]
@@ -144,7 +195,16 @@ def get_price_for_tokens(token_count: int, price_tiers: List[Dict]) -> float:
 def calculate_costs(
     df: pd.DataFrame, cost_config: Dict, eval_config: Dict
 ) -> pd.DataFrame:
-    """Calculates input, output, and total costs for each run based on new tiered pricing."""
+    """Calculates input, output, and total costs for each run based on tiered pricing.
+
+    Args:
+        df: The DataFrame to process.
+        cost_config: The model cost configuration.
+        eval_config: The dashboard evaluation configuration.
+
+    Returns:
+        The DataFrame with the calculated costs.
+    """
     df_with_costs = df.copy()
     cost_calc_config = eval_config.get("cost_calculation", {})
     input_token_cols = cost_calc_config.get("input_token_cols", [])
@@ -212,7 +272,16 @@ def calculate_costs(
 def process_data(
     df: pd.DataFrame, cost_config: Dict, eval_config: DashboardConfig
 ) -> pd.DataFrame:
-    """Main data processing pipeline."""
+    """The main data processing pipeline.
+
+    Args:
+        df: The DataFrame to process.
+        cost_config: The model cost configuration.
+        eval_config: The dashboard evaluation configuration.
+
+    Returns:
+        The processed DataFrame.
+    """
     if df.empty:
         return df
 
@@ -285,7 +354,16 @@ def process_data(
 def create_leaderboard(
     df: pd.DataFrame, selected_groups: List[str], config: Dict
 ) -> pd.DataFrame:
-    """Creates a leaderboard DataFrame with key performance indicators."""
+    """Creates a leaderboard DataFrame with key performance indicators.
+
+    Args:
+        df: The DataFrame to process.
+        selected_groups: A list of selected groups to include.
+        config: The dashboard configuration.
+
+    Returns:
+        A DataFrame representing the leaderboard.
+    """
     if df.empty or not selected_groups:
         return pd.DataFrame()
 
@@ -313,7 +391,17 @@ def create_leaderboard(
 def create_pareto_frontier_plot(
     df: pd.DataFrame, selected_groups: List[str], x_axis_mode: str, config: Dict
 ) -> go.Figure:
-    """Visualizes the trade-off between model performance and cost/token usage."""
+    """Visualizes the trade-off between model performance and cost/token usage.
+
+    Args:
+        df: The DataFrame to process.
+        selected_groups: A list of selected groups to include.
+        x_axis_mode: The mode for the x-axis (e.g., 'cost' or 'tokens').
+        config: The dashboard configuration.
+
+    Returns:
+        A Plotly figure object.
+    """
     fig = go.Figure()
     plot_config = config["plots"]["pareto"]
     if df.empty or not selected_groups or not plot_config.get("enabled", False):
@@ -378,7 +466,16 @@ def create_pareto_frontier_plot(
 def create_success_rates_plot(
     df: pd.DataFrame, selected_groups: List[str], config: Dict
 ) -> go.Figure:
-    """Compares models across different success metrics."""
+    """Compares models across different success metrics.
+
+    Args:
+        df: The DataFrame to process.
+        selected_groups: A list of selected groups to include.
+        config: The dashboard configuration.
+
+    Returns:
+        A Plotly figure object.
+    """
     fig = go.Figure()
     plot_config = config["plots"]["success_rates"]
     if df.empty or not selected_groups or not plot_config.get("enabled", False):
@@ -422,7 +519,16 @@ def create_success_rates_plot(
 def create_failure_analysis_plot(
     df: pd.DataFrame, selected_groups: List[str], config: Dict
 ) -> go.Figure:
-    """Shows common failure reasons by model."""
+    """Shows common failure reasons by model.
+
+    Args:
+        df: The DataFrame to process.
+        selected_groups: A list of selected groups to include.
+        config: The dashboard configuration.
+
+    Returns:
+        A Plotly figure object.
+    """
     fig = go.Figure()
     plot_config = config["plots"]["failure_analysis"]
     if df.empty or not selected_groups or not plot_config.get("enabled", False):
@@ -459,7 +565,16 @@ def create_failure_analysis_plot(
 def create_token_breakdown_plot(
     df: pd.DataFrame, selected_groups: List[str], config: Dict
 ) -> go.Figure:
-    """Creates a stacked bar chart showing token breakdown."""
+    """Creates a stacked bar chart showing token breakdown.
+
+    Args:
+        df: The DataFrame to process.
+        selected_groups: A list of selected groups to include.
+        config: The dashboard configuration.
+
+    Returns:
+        A Plotly figure object.
+    """
     fig = go.Figure()
     plot_config = config["plots"]["token_breakdown"]
     if df.empty or not selected_groups or not plot_config.get("enabled", False):
@@ -493,7 +608,16 @@ def create_token_breakdown_plot(
 def create_cost_breakdown_plot(
     df: pd.DataFrame, selected_groups: List[str], config: Dict
 ) -> go.Figure:
-    """Creates a stacked bar chart for cost breakdown."""
+    """Creates a stacked bar chart for cost breakdown.
+
+    Args:
+        df: The DataFrame to process.
+        selected_groups: A list of selected groups to include.
+        config: The dashboard configuration.
+
+    Returns:
+        A Plotly figure object.
+    """
     fig = go.Figure()
     plot_config = config["plots"]["cost_breakdown"]
     if df.empty or not selected_groups or not plot_config.get("enabled", False):
@@ -524,8 +648,8 @@ def create_cost_breakdown_plot(
     return fig
 
 
-def main():
-    """Main Streamlit application entrypoint."""
+def main() -> None:
+    """The main Streamlit application entrypoint."""
     eval_config = EVAL_CONFIG  # Use the validated config
 
     st.title(eval_config.title)

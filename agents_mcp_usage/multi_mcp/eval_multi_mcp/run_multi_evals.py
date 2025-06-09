@@ -59,12 +59,21 @@ class ModelEvaluationResults:
         self.reports: List[EvaluationReport] = []
         self.failed_runs: List[Dict[str, Any]] = []
 
-    def add_successful_run(self, report: EvaluationReport):
-        """Add a successful evaluation report."""
+    def add_successful_run(self, report: EvaluationReport) -> None:
+        """Adds a successful evaluation report.
+
+        Args:
+            report: The evaluation report to add.
+        """
         self.reports.append(report)
 
-    def add_failed_run(self, run_index: int, error: str):
-        """Add information about a failed run."""
+    def add_failed_run(self, run_index: int, error: str) -> None:
+        """Adds information about a failed run.
+
+        Args:
+            run_index: The index of the failed run.
+            error: The error message.
+        """
         self.failed_runs.append(
             {
                 "run_index": run_index,
@@ -74,14 +83,25 @@ class ModelEvaluationResults:
         )
 
     def get_success_rate(self) -> float:
-        """Calculate the success rate for this model."""
+        """Calculates the success rate for this model.
+
+        Returns:
+            The success rate as a float.
+        """
         total_runs = len(self.reports) + len(self.failed_runs)
         if total_runs == 0:
             return 0.0
         return len(self.reports) / total_runs
 
     def write_individual_results(self, output_dir: str) -> Optional[str]:
-        """Write individual model results to CSV file."""
+        """Writes individual model results to a CSV file.
+
+        Args:
+            output_dir: The directory to write the CSV file to.
+
+        Returns:
+            The path to the created CSV file, or None if no results were written.
+        """
         if not self.reports:
             return None
 
@@ -180,7 +200,17 @@ class MultiModelEvaluator:
     async def run_single_evaluation(
         self, model: str, run_index: int, dataset, timeout: int = 120
     ) -> Optional[EvaluationReport]:
-        """Run a single evaluation for a model with timeout and error handling."""
+        """Runs a single evaluation for a model with timeout and error handling.
+
+        Args:
+            model: The model to evaluate.
+            run_index: The index of the run.
+            dataset: The evaluation dataset.
+            timeout: The timeout in seconds for the evaluation.
+
+        Returns:
+            An EvaluationReport if successful, otherwise None.
+        """
         try:
 
             async def fix_with_model(inputs: MermaidInput) -> MermaidOutput:
@@ -238,8 +268,16 @@ class MultiModelEvaluator:
         dataset,
         parallel: bool = True,
         timeout: int = 600,
-    ):
-        """Run multiple evaluations for a single model."""
+    ) -> None:
+        """Runs multiple evaluations for a single model.
+
+        Args:
+            model: The model to evaluate.
+            n_runs: The number of runs to perform.
+            dataset: The evaluation dataset.
+            parallel: Whether to run the evaluations in parallel.
+            timeout: The timeout in seconds for each evaluation.
+        """
         self.console.print(f"\n[bold cyan]Evaluating model: {model}[/bold cyan]")
 
         if parallel:
@@ -289,7 +327,11 @@ class MultiModelEvaluator:
         self.console.print(f"  Success rate: {success_rate:.1%}")
 
     def write_combined_results(self) -> str:
-        """Write combined results from all models to a single CSV file."""
+        """Writes combined results from all models to a single CSV file.
+
+        Returns:
+            The path to the combined results CSV file.
+        """
         os.makedirs(self.output_dir, exist_ok=True)
         timestamp = get_timestamp_prefix()
         filepath = os.path.join(self.output_dir, f"{timestamp}_combined_results.csv")
@@ -366,8 +408,8 @@ class MultiModelEvaluator:
 
         return filepath
 
-    def print_final_summary(self):
-        """Print a comprehensive summary of all results."""
+    def print_final_summary(self) -> None:
+        """Prints a comprehensive summary of all results."""
         table = Table(title="Multi-Model Evaluation Summary")
 
         table.add_column("Model", style="cyan")
@@ -403,7 +445,16 @@ class MultiModelEvaluator:
     async def run_all_evaluations(
         self, n_runs: int, parallel: bool = True, timeout: int = 120
     ) -> str:
-        """Run evaluations for all models and return path to combined results."""
+        """Runs evaluations for all models and returns the path to the combined results.
+
+        Args:
+            n_runs: The number of runs per model.
+            parallel: Whether to run the evaluations in parallel.
+            timeout: The timeout in seconds for each evaluation.
+
+        Returns:
+            The path to the combined results CSV file.
+        """
         self.console.print("[bold green]Starting multi-model evaluation[/bold green]")
         self.console.print(f"Models: {', '.join(self.models)}")
         self.console.print(f"Runs per model: {n_runs}")
@@ -425,8 +476,8 @@ class MultiModelEvaluator:
         return combined_file
 
 
-async def main():
-    """Main entry point for the script."""
+async def main() -> None:
+    """The main entry point for the script."""
     parser = argparse.ArgumentParser(
         description="Run mermaid diagram evaluations across multiple LLM models"
     )

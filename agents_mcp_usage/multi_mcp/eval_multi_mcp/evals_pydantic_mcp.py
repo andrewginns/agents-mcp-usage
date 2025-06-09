@@ -68,7 +68,17 @@ MAX_RETRY_DELAY = 30.0  # seconds
 
 
 def is_retryable_error(exception: Exception) -> bool:
-    """Check if an exception should be retried."""
+    """Checks if an exception is retryable.
+
+    This function checks if the given exception is a retryable HTTP error or a
+    general connection error.
+
+    Args:
+        exception: The exception to check.
+
+    Returns:
+        True if the exception is retryable, False otherwise.
+    """
     if isinstance(exception, ModelHTTPError):
         return exception.status_code in RETRYABLE_HTTP_STATUS_CODES
 
@@ -80,27 +90,29 @@ def is_retryable_error(exception: Exception) -> bool:
 
 
 async def exponential_backoff_retry(
-    func_call,
+    func_call: callable,
     max_attempts: int = MAX_RETRY_ATTEMPTS,
     base_delay: float = BASE_RETRY_DELAY,
     max_delay: float = MAX_RETRY_DELAY,
     jitter: bool = True,
 ) -> Any:
-    """
-    Execute a function with exponential backoff retry logic.
+    """Executes a function with exponential backoff retry logic.
+
+    This function attempts to execute the given asynchronous function call,
+    retrying with an exponential backoff delay if a retryable error occurs.
 
     Args:
-        func_call: Async function to retry
-        max_attempts: Maximum number of retry attempts
-        base_delay: Base delay between retries in seconds
-        max_delay: Maximum delay between retries in seconds
-        jitter: Whether to add random jitter to delays
+        func_call: The async function to retry.
+        max_attempts: The maximum number of retry attempts.
+        base_delay: The base delay between retries in seconds.
+        max_delay: The maximum delay between retries in seconds.
+        jitter: Whether to add random jitter to the delays.
 
     Returns:
-        Result of the function call
+        The result of the function call.
 
     Raises:
-        The last exception if all retries are exhausted
+        The last exception if all retries are exhausted.
     """
     last_exception = None
 
@@ -158,7 +170,14 @@ async def exponential_backoff_retry(
 
 
 def get_mcp_servers() -> List[MCPServerStdio]:
-    """Get the configured MCP servers for the evaluation."""
+    """Gets the configured MCP servers for the evaluation.
+
+    This function returns a list of MCP servers required for the evaluation,
+    including the local example server and the mermaid validator server.
+
+    Returns:
+        A list of configured MCP servers.
+    """
     local_server = MCPServerStdio(
         command="uv",
         args=[
@@ -180,14 +199,17 @@ def get_mcp_servers() -> List[MCPServerStdio]:
 def create_agent(
     model: str = DEFAULT_MODEL, model_settings: Dict[str, Any] = None
 ) -> Agent:
-    """Create an agent with MCP servers for the specified model.
+    """Creates an agent with MCP servers for the specified model.
+
+    This function initializes and returns an agent with the necessary MCP
+    servers and model settings.
 
     Args:
-        model: The model to use for the agent
-        model_settings: Optional model-specific settings
+        model: The model to use for the agent.
+        model_settings: Optional model-specific settings.
 
     Returns:
-        Configured Agent instance
+        A configured Agent instance.
     """
     if model_settings is None:
         model_settings = {}
@@ -230,6 +252,18 @@ class UsedBothMCPTools(Evaluator[MermaidInput, MermaidOutput]):
     async def evaluate(
         self, ctx: EvaluatorContext[MermaidInput, MermaidOutput]
     ) -> float:
+        """Evaluates if both MCP tools were used in the given context.
+
+        This method checks the tools used in the output and returns a score
+        based on whether tools from both MCP servers were utilized.
+
+        Args:
+            ctx: The evaluator context containing the input and output.
+
+        Returns:
+            A score of 1.0 if both tools were used, 0.5 if one was used,
+            and 0.0 otherwise.
+        """
         if not ctx.output or not ctx.output.tools_used:
             return 0.0
 
@@ -257,7 +291,17 @@ class UsageLimitNotExceeded(Evaluator[MermaidInput, MermaidOutput]):
     async def evaluate(
         self, ctx: EvaluatorContext[MermaidInput, MermaidOutput]
     ) -> float:
-        """Check if the case failed due to usage limits being exceeded."""
+        """Checks if the case failed due to usage limits being exceeded.
+
+        This method examines the output for a usage limit failure reason and
+        returns a score accordingly.
+
+        Args:
+            ctx: The evaluator context.
+
+        Returns:
+            0.0 if a usage limit failure occurred, 1.0 otherwise.
+        """
         if ctx.output and ctx.output.failure_reason == "usage_limit_exceeded":
             logfire.warning(
                 "Case failed due to usage limit exceeded",
@@ -274,6 +318,17 @@ class MermaidDiagramValid(Evaluator[MermaidInput, MermaidOutput]):
     async def evaluate(
         self, ctx: EvaluatorContext[MermaidInput, MermaidOutput]
     ) -> float:
+        """Evaluates if the generated mermaid diagram is valid.
+
+        This method validates the mermaid diagram in the output, handling
+        retries and logging the results.
+
+        Args:
+            ctx: The evaluator context.
+
+        Returns:
+            1.0 if the diagram is valid, 0.0 otherwise.
+        """
         # Skip validation if there was a failure
         if ctx.output and ctx.output.failure_reason:
             logfire.info(
@@ -331,14 +386,17 @@ class MermaidDiagramValid(Evaluator[MermaidInput, MermaidOutput]):
 async def fix_mermaid_diagram(
     inputs: MermaidInput, model: str = DEFAULT_MODEL
 ) -> MermaidOutput:
-    """Fix an invalid mermaid diagram using the agent with multiple MCP servers.
+    """Fixes an invalid mermaid diagram using an agent with multiple MCP servers.
+
+    This function runs an agent to fix a given mermaid diagram, handling
+    various exceptions and capturing metrics.
 
     Args:
-        inputs: The input containing the invalid diagram
-        model: The model to use for the agent
+        inputs: The input containing the invalid diagram.
+        model: The model to use for the agent.
 
     Returns:
-        MermaidOutput with the fixed diagram and captured metrics
+        A MermaidOutput object with the fixed diagram and captured metrics.
     """
     query = f"Add the current time and fix the mermaid diagram syntax using the validator: {inputs.invalid_diagram}. Return only the fixed mermaid diagram between backticks."
 
@@ -477,13 +535,16 @@ async def fix_mermaid_diagram(
 def create_evaluation_dataset(
     judge_model: str = DEFAULT_MODEL,
 ) -> Dataset[MermaidInput, MermaidOutput, Any]:
-    """Create the dataset for evaluating mermaid diagram fixing.
+    """Creates the dataset for evaluating mermaid diagram fixing.
+
+    This function constructs a dataset with test cases of varying difficulty
+    and a set of evaluators for judging the results.
 
     Args:
-        judge_model: The model to use for LLM judging
+        judge_model: The model to use for LLM judging.
 
     Returns:
-        The evaluation dataset
+        The evaluation dataset.
     """
     return Dataset[MermaidInput, MermaidOutput, Any](
         # Construct 3 tests, each asks the LLM to fix an invalid mermaid diagram of increasing difficulty
@@ -546,7 +607,11 @@ def create_evaluation_dataset(
 
 
 def get_timestamp_prefix() -> str:
-    """Get a timestamp prefix in the format yyyy-mm-dd_H-M-s."""
+    """Gets a timestamp prefix in the format yyyy-mm-dd_H-M-s.
+
+    Returns:
+        A string representing the current timestamp.
+    """
     now = datetime.now()
     return now.strftime("%Y-%m-%d_%H-%M-%S")
 
@@ -554,15 +619,18 @@ def get_timestamp_prefix() -> str:
 def write_mermaid_results_to_csv(
     report: EvaluationReport, model: str, output_dir: str = "./mermaid_results"
 ) -> str:
-    """Write mermaid evaluation results with metrics to a CSV file.
+    """Writes mermaid evaluation results with metrics to a CSV file.
+
+    This function takes an evaluation report and writes the results to a CSV
+    file, including scores and metrics.
 
     Args:
-        report: The evaluation report from pydantic_evals
-        model: The model name used for evaluation
-        output_dir: Directory to write the CSV file
+        report: The evaluation report from pydantic_evals.
+        model: The model name used for evaluation.
+        output_dir: The directory to write the CSV file to.
 
     Returns:
-        Path to the created CSV file
+        The path to the created CSV file.
     """
     os.makedirs(output_dir, exist_ok=True)
 
@@ -655,16 +723,19 @@ async def run_evaluations(
     export_csv: bool = True,
     output_dir: str = "./mermaid_results",
 ) -> EvaluationReport:
-    """Run the evaluations on the mermaid diagram fixing task.
+    """Runs the evaluations on the mermaid diagram fixing task.
+
+    This function sets up the evaluation dataset, runs the evaluation for a
+    given model, and exports the results to a CSV file.
 
     Args:
-        model: The model to use for the agent
-        judge_model: The model to use for LLM judging
-        export_csv: Whether to export results to CSV
-        output_dir: Directory to save results
+        model: The model to use for the agent.
+        judge_model: The model to use for LLM judging.
+        export_csv: Whether to export the results to a CSV file.
+        output_dir: The directory to save the results to.
 
     Returns:
-        The evaluation report
+        The evaluation report.
     """
     dataset = create_evaluation_dataset(judge_model)
 

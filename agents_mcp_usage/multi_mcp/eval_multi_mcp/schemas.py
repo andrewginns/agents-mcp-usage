@@ -3,7 +3,7 @@ Pydantic Schemas for Dashboard Configuration Validation
 """
 
 from pydantic import BaseModel, Field, validator
-from typing import List, Dict, Optional
+from typing import List, Dict, Optional, Any
 
 
 class PrimaryMetricConfig(BaseModel):
@@ -16,7 +16,8 @@ class PrimaryMetricConfig(BaseModel):
     )
 
     @validator("goal")
-    def goal_must_be_max_or_min(cls, v):
+    def goal_must_be_max_or_min(cls, v: str) -> str:
+        """Validates that the goal is either 'maximize' or 'minimize'."""
         if v not in ["maximize", "minimize"]:
             raise ValueError("goal must be 'maximize' or 'minimize'")
         return v
@@ -65,7 +66,10 @@ class BarPlotConfig(BaseModel):
     series: Optional[List[StackedBarPlotSeries]] = None
 
     @validator("y_columns", always=True)
-    def check_prefix_or_columns(cls, v, values):
+    def check_prefix_or_columns(
+        cls, v: Optional[List[str]], values: Dict[str, Any]
+    ) -> Optional[List[str]]:
+        """Validates that either 'y_prefix' or 'y_columns' is provided for grouped_bar plots."""
         if not values.get("y_prefix") and not v:
             if values.get("type") == "grouped_bar":
                 raise ValueError(

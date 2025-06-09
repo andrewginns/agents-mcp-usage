@@ -27,17 +27,18 @@ class MermaidValidationResult(BaseModel):
 
 @mcp.tool()
 async def validate_mermaid_diagram(diagram_text: str) -> MermaidValidationResult:
-    """
-    Validate a mermaid diagram and render it as a PNG image if valid.
+    """Validates a mermaid diagram and renders it as a PNG image if valid.
 
-    Uses mermaid-cli to validate and render the diagram. Requires mermaid-cli
-    to be installed globally via npm: npm install -g @mermaid-js/mermaid-cli
+    This function uses the mermaid-cli to validate and render the provided
+    mermaid diagram text.Requires mermaid-cli to be installed globally via npm
+    `npm install -g @mermaid-js/mermaid-cli`
+
 
     Args:
-        diagram_text: The mermaid diagram text to validate
+        diagram_text: The mermaid diagram text to validate.
 
     Returns:
-        A MermaidValidationResult object containing validation results
+        A MermaidValidationResult object containing the validation results.
     """
     temp_file_path = None
     output_file_name = None
@@ -107,12 +108,11 @@ async def validate_mermaid_diagram(diagram_text: str) -> MermaidValidationResult
 
 
 @mcp.resource("example://mermaid-diagram")
-def get_example_mermaid_diagram():
-    """
-    Provides an example mermaid diagram for the client.
+def get_example_mermaid_diagram() -> dict:
+    """Provides an example mermaid diagram for the client.
 
     Returns:
-        Dict containing an example mermaid diagram
+        A dictionary containing an example mermaid diagram.
     """
     return {
         "diagram": """

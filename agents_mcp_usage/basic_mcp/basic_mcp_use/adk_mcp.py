@@ -20,11 +20,14 @@ logfire.instrument_mcp()
 
 
 async def main(query: str = "Greet Andrew and give him the current time") -> None:
-    """
-    Main function to run the agent
+    """Runs the agent with a given query.
+
+    This function sets up the MCP server, creates an LLM agent, and runs it
+    with a specified query. It also handles the cleanup of the MCP server
+    connection.
 
     Args:
-        query (str): The query to run the agent with
+        query: The query to run the agent with.
     """
     # Set up MCP server connection
     server_params = StdioServerParameters(
