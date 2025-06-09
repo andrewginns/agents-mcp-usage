@@ -6,10 +6,25 @@ import streamlit as st
 import numpy as np
 from typing import List, Dict
 import json
+import re
+from pydantic import ValidationError
+
+from agents_mcp_usage.multi_mcp.eval_multi_mcp.dashboard_config import (
+    DEFAULT_CONFIG,
+)
+from agents_mcp_usage.multi_mcp.eval_multi_mcp.schemas import DashboardConfig
+
+# Load and validate the configuration
+try:
+    EVAL_CONFIG = DashboardConfig(**DEFAULT_CONFIG)
+except ValidationError as e:
+    st.error(f"Dashboard configuration error: {e}")
+    st.stop()
+
 
 # Page configuration
 st.set_page_config(
-    page_title="Merbench - LLM Evaluation Benchmark", page_icon="🏆", layout="wide"
+    page_title=EVAL_CONFIG.title, page_icon=EVAL_CONFIG.icon, layout="wide"
 )
 
 # Default model costs (per 1M tokens)
@@ -24,6 +39,7 @@ DEFAULT_COSTS = {
 
 # --- Data Loading and Processing ---
 
+
 def find_all_combined_results_csvs(directory_path: str) -> list[str]:
     """Finds all '*_combined_results.csv' files, sorted by modification time."""
     if not os.path.isdir(directory_path):
@@ -35,6 +51,7 @@ def find_all_combined_results_csvs(directory_path: str) -> list[str]:
     except Exception as e:
         st.error(f"Error finding CSV files in '{directory_path}': {e}")
         return []
+
 
 def detect_csv_files(directory: str = None) -> List[str]:
     """Detect CSV result files in the specified directory."""
@@ -50,7 +67,7 @@ def load_csv_data(file_paths: List[str]) -> pd.DataFrame:
     """Load and combine multiple CSV files into a single DataFrame."""
     if not file_paths:
         return pd.DataFrame()
-    
+
     dataframes = []
     for file_path in file_paths:
         try:
@@ -63,21 +80,25 @@ def load_csv_data(file_paths: List[str]) -> pd.DataFrame:
         except (pd.errors.EmptyDataError, FileNotFoundError) as e:
             st.error(f"Could not load {os.path.basename(file_path)}: {e}")
         except Exception as e:
-            st.error(f"An unexpected error occurred while loading {os.path.basename(file_path)}: {e}")
+            st.error(
+                f"An unexpected error occurred while loading {os.path.basename(file_path)}: {e}"
+            )
 
     return pd.concat(dataframes, ignore_index=True) if dataframes else pd.DataFrame()
 
 
-def extract_case_difficulty(case_name: str) -> str:
-    """Extracts difficulty ('easy', 'medium', 'hard') from a case name."""
-    case_lower = str(case_name).lower()
-    if "easy" in case_lower:
-        return "easy"
-    if "medium" in case_lower:
-        return "medium"
-    if "hard" in case_lower:
-        return "hard"
-    return "unknown"
+def extract_grouping_column(df: pd.DataFrame, config: Dict) -> pd.DataFrame:
+    """Extracts a grouping column based on regex from the config."""
+    source_col = config["grouping"]["column"]
+    target_col = config["grouping"]["target_column"]
+    regex = config["grouping"]["extractor_regex"]
+
+    def extract_group(value: str) -> str:
+        match = re.match(regex, str(value))
+        return match.group(1) if match else "other"
+
+    df[target_col] = df[source_col].apply(extract_group)
+    return df
 
 
 def parse_metric_details(metric_details_str: str) -> Dict:
@@ -91,9 +112,15 @@ def parse_metric_details(metric_details_str: str) -> Dict:
         return {}
 
 
-def calculate_costs(df: pd.DataFrame, cost_config: Dict) -> pd.DataFrame:
-    """Calculates input, output, and total costs for each run."""
+def calculate_costs(
+    df: pd.DataFrame, cost_config: Dict, eval_config: Dict
+) -> pd.DataFrame:
+    """Calculates input, output, and total costs for each run based on eval config."""
     df_with_costs = df.copy()
+    cost_calc_config = eval_config.get("cost_calculation", {})
+    input_token_cols = cost_calc_config.get("input_token_cols", [])
+    output_token_cols = cost_calc_config.get("output_token_cols", [])
+
     df_with_costs["input_cost"] = 0.0
     df_with_costs["output_cost"] = 0.0
     df_with_costs["total_cost"] = 0.0
@@ -102,134 +129,206 @@ def calculate_costs(df: pd.DataFrame, cost_config: Dict) -> pd.DataFrame:
         model = row.get("Model")
         if model in cost_config:
             try:
-                input_tokens = row.get("Metric_request_tokens", 0) or 0
-                output_tokens = row.get("Metric_response_tokens", 0) or 0
-                thinking_tokens = row.get("thinking_tokens", 0) or 0
+                input_tokens = sum(row.get(col, 0) or 0 for col in input_token_cols)
+                output_tokens = sum(row.get(col, 0) or 0 for col in output_token_cols)
 
                 input_cost = (input_tokens / 1_000_000) * cost_config[model]["input"]
-                output_cost = ((output_tokens + thinking_tokens) / 1_000_000) * cost_config[model]["output"]
-                
+                output_cost = (output_tokens / 1_000_000) * cost_config[model]["output"]
+
                 df_with_costs.at[idx, "input_cost"] = input_cost
                 df_with_costs.at[idx, "output_cost"] = output_cost
                 df_with_costs.at[idx, "total_cost"] = input_cost + output_cost
             except (TypeError, KeyError) as e:
-                st.warning(f"Cost calculation error for model {model} at row {idx}: {e}")
+                st.warning(
+                    f"Cost calculation error for model {model} at row {idx}: {e}"
+                )
     return df_with_costs
 
 
-def process_data(df: pd.DataFrame, cost_config: Dict) -> pd.DataFrame:
+def process_data(
+    df: pd.DataFrame, cost_config: Dict, eval_config: DashboardConfig
+) -> pd.DataFrame:
     """Main data processing pipeline."""
     if df.empty:
         return df
 
     processed_df = df.copy()
-    processed_df["difficulty"] = processed_df["Case"].apply(extract_case_difficulty)
-    
-    # Extract token counts from metric details
-    metric_details = processed_df["Metric_details"].apply(parse_metric_details)
-    processed_df["thinking_tokens"] = metric_details.apply(lambda x: x.get("thoughts_tokens", 0))
-    processed_df["text_tokens"] = metric_details.apply(lambda x: x.get("text_prompt_tokens", 0))
+
+    # Generic grouping
+    processed_df = extract_grouping_column(processed_df, eval_config.model_dump())
+
+    # Extract token counts from metric details (assuming 'Metric_details' exists)
+    if "Metric_details" in processed_df.columns:
+        metric_details = processed_df["Metric_details"].apply(parse_metric_details)
+        processed_df["thinking_tokens"] = metric_details.apply(
+            lambda x: x.get("thoughts_tokens", 0)
+        )
+        processed_df["text_tokens"] = metric_details.apply(
+            lambda x: x.get("text_prompt_tokens", 0)
+        )
+    else:
+        # Ensure these columns exist even if Metric_details is missing
+        processed_df["thinking_tokens"] = 0
+        processed_df["text_tokens"] = 0
 
     # Calculate total response tokens
     processed_df["total_response_tokens"] = (
         processed_df.get("Metric_response_tokens", 0) + processed_df["thinking_tokens"]
     )
-    
-    # Standardize correctness score
-    processed_df["correctness_score"] = processed_df.get("Score_MermaidDiagramValid", 0.5) * 100
 
-    return calculate_costs(processed_df, cost_config)
+    # Standardize primary metric score
+    primary_metric_config = eval_config.primary_metric
+    if (
+        primary_metric_config.name not in processed_df.columns
+        and primary_metric_config.score_column
+    ):
+        if primary_metric_config.score_column in processed_df.columns:
+            # Create the primary metric from the specified score column, defaulting to 0
+            processed_df[primary_metric_config.name] = (
+                processed_df.get(primary_metric_config.score_column, 0) * 100
+            )
+        else:
+            st.warning(
+                f"Specified score_column '{primary_metric_config.score_column}' not found. Primary metric will be 0."
+            )
+            processed_df[primary_metric_config.name] = 0
+    elif primary_metric_config.name in processed_df.columns:
+        # if the column already exists, make sure it's scaled to 100
+        processed_df[primary_metric_config.name] = (
+            processed_df[primary_metric_config.name] * 100
+        )
+    else:
+        st.error(
+            f"Primary metric column '{primary_metric_config.name}' not found and no 'score_column' provided in config."
+        )
+        st.stop()
+
+    return calculate_costs(processed_df, cost_config, eval_config.model_dump())
 
 
 # --- UI & Plotting ---
 
-def create_leaderboard(df: pd.DataFrame, selected_cases: List[str]) -> pd.DataFrame:
+
+def create_leaderboard(
+    df: pd.DataFrame, selected_groups: List[str], config: Dict
+) -> pd.DataFrame:
     """Creates a leaderboard DataFrame with key performance indicators."""
-    if df.empty or not selected_cases:
+    if df.empty or not selected_groups:
         return pd.DataFrame()
 
-    df_filtered = df[df["difficulty"].isin(selected_cases)]
+    grouping_col = config["grouping"]["target_column"]
+    df_filtered = df[df[grouping_col].isin(selected_groups)]
     if df_filtered.empty:
         return pd.DataFrame()
 
-    leaderboard = df_filtered.groupby("Model").agg(
-        Correct=("correctness_score", "mean"),
-        Cost=("total_cost", "mean"),
-        Duration=("Duration", "mean"),
-        Tokens=("total_response_tokens", "mean"),
-        Runs=("Model", "size"),
-    ).reset_index()
+    primary_metric_name = config["primary_metric"]["name"]
+    sort_ascending = config["primary_metric"]["goal"] == "minimize"
 
-    return leaderboard.sort_values("Correct", ascending=False)
+    agg_config = {
+        "Correct": (primary_metric_name, "mean"),
+        "Cost": ("total_cost", "mean"),
+        "Duration": ("Duration", "mean"),
+        "Tokens": ("total_response_tokens", "mean"),
+        "Runs": ("Model", "size"),
+    }
+
+    leaderboard = df_filtered.groupby("Model").agg(**agg_config).reset_index()
+
+    return leaderboard.sort_values("Correct", ascending=sort_ascending)
 
 
-
-def create_pareto_frontier_plot(df: pd.DataFrame, selected_cases: List[str], x_axis_mode: str) -> go.Figure:
+def create_pareto_frontier_plot(
+    df: pd.DataFrame, selected_groups: List[str], x_axis_mode: str, config: Dict
+) -> go.Figure:
     """Visualizes the trade-off between model performance and cost/token usage."""
     fig = go.Figure()
-    if df.empty or not selected_cases:
+    plot_config = config["plots"]["pareto"]
+    if df.empty or not selected_groups or not plot_config.get("enabled", False):
         return fig.update_layout(title="No data available for selected filters.")
 
-    df_filtered = df[df["difficulty"].isin(selected_cases)]
-    model_metrics = df_filtered.groupby("Model").agg(
-        correctness_score=("correctness_score", "mean"),
-        total_cost=("total_cost", "mean"),
-        total_response_tokens=("total_response_tokens", "mean"),
-        Duration=("Duration", "mean"),
-    ).reset_index()
+    grouping_col = config["grouping"]["target_column"]
+    df_filtered = df[df[grouping_col].isin(selected_groups)]
 
-    x_data, x_title, hover_label, hover_format = (
-        (model_metrics["total_cost"], "Average Total Cost ($)", "Avg Cost", ":.4f")
-        if x_axis_mode == "cost"
-        else (model_metrics["total_response_tokens"], "Average Total Response Tokens", "Avg Tokens", ":.0f")
+    primary_metric_name = config["primary_metric"]["name"]
+    y_axis_label = config["primary_metric"]["label"]
+
+    model_metrics = (
+        df_filtered.groupby("Model")
+        .agg(
+            y_axis=(primary_metric_name, "mean"),
+            total_cost=("total_cost", "mean"),
+            total_response_tokens=("total_response_tokens", "mean"),
+            color_axis=(plot_config["color_axis"], "mean"),
+        )
+        .reset_index()
     )
 
-    fig.add_trace(go.Scatter(
-        x=x_data,
-        y=model_metrics["correctness_score"],
-        mode="markers+text",
-        marker=dict(
-            size=18,
-            color=model_metrics["Duration"],
-            colorscale="RdYlGn_r",
-            showscale=True,
-            colorbar=dict(title="Avg Duration (s)"),
-        ),
-        text=model_metrics["Model"],
-        textposition="top center",
-        hovertemplate=(
-            "<b>%{text}</b><br>"
-            "Avg Score: %{y:.1f}%<br>"
-            f"{hover_label}: %{{x{hover_format}}}<br>"
-            "Avg Duration: %{marker.color:.1f}s<extra></extra>"
-        ),
-    ))
-    
+    x_axis_config = plot_config["x_axis_options"][x_axis_mode]
+    x_data = model_metrics[x_axis_config["column"]]
+    x_title = x_axis_config["label"]
+    hover_label = x_axis_config["label"]
+    hover_format = ":.4f" if x_axis_mode == "cost" else ":.0f"
+
+    fig.add_trace(
+        go.Scatter(
+            x=x_data,
+            y=model_metrics["y_axis"],
+            mode="markers+text",
+            marker=dict(
+                size=18,
+                color=model_metrics["color_axis"],
+                colorscale="RdYlGn_r",
+                showscale=True,
+                colorbar=dict(title=f"Avg {plot_config['color_axis']} (s)"),
+            ),
+            text=model_metrics["Model"],
+            textposition="top center",
+            hovertemplate=(
+                "<b>%{text}</b><br>"
+                f"{y_axis_label}: %{{y:.1f}}%<br>"
+                f"{hover_label}: %{{x{hover_format}}}<br>"
+                f"Avg {plot_config['color_axis']}: %{{marker.color:.1f}}s<extra></extra>"
+            ),
+        )
+    )
+
     fig.update_layout(
-        title=f"Performance vs. {'Cost' if x_axis_mode == 'cost' else 'Tokens'}",
-        xaxis_title=x_title,
-        yaxis_title="Average Success Rate (%)",
+        title=plot_config["title"].format(x_axis_label=x_title),
+        xaxis_title=f"Average {x_title}",
+        yaxis_title=y_axis_label,
         showlegend=False,
         height=600,
     )
     return fig
 
 
-def create_success_rates_plot(df: pd.DataFrame, selected_cases: List[str]) -> go.Figure:
+def create_success_rates_plot(
+    df: pd.DataFrame, selected_groups: List[str], config: Dict
+) -> go.Figure:
     """Compares models across different success metrics."""
     fig = go.Figure()
-    if df.empty or not selected_cases:
+    plot_config = config["plots"]["success_rates"]
+    if df.empty or not selected_groups or not plot_config.get("enabled", False):
         return fig.update_layout(title="No data available for selected filters.")
 
-    df_filtered = df[df["difficulty"].isin(selected_cases)]
-    metric_cols = [col for col in df_filtered.columns if col.startswith("Score_")]
+    grouping_col = config["grouping"]["target_column"]
+    df_filtered = df[df[grouping_col].isin(selected_groups)]
+
+    y_prefix = plot_config.get("y_prefix")
+    y_columns = plot_config.get("y_columns", [])
+    metric_cols = (
+        y_columns
+        if y_columns
+        else [col for col in df_filtered.columns if col.startswith(y_prefix)]
+    )
+
     if not metric_cols:
-        return fig.update_layout(title="No 'Score_' columns found.")
+        return fig.update_layout(title=f"No columns with prefix '{y_prefix}' found.")
 
     models = sorted(df_filtered["Model"].unique())
-    
+
     for metric_col in metric_cols:
-        metric_name = metric_col.replace("Score_", "")
+        metric_name = metric_col.replace(y_prefix, "") if y_prefix else metric_col
         avg_scores = [
             df_filtered[df_filtered["Model"] == model][metric_col].mean() * 100
             for model in models
@@ -237,7 +336,7 @@ def create_success_rates_plot(df: pd.DataFrame, selected_cases: List[str]) -> go
         fig.add_trace(go.Bar(name=metric_name, x=models, y=avg_scores))
 
     fig.update_layout(
-        title="Success Rate by Metric",
+        title=plot_config["title"],
         xaxis_title="Model",
         yaxis_title="Success Rate (%)",
         barmode="group",
@@ -247,32 +346,34 @@ def create_success_rates_plot(df: pd.DataFrame, selected_cases: List[str]) -> go
     return fig
 
 
-def create_failure_analysis_plot(df: pd.DataFrame, selected_cases: List[str]) -> go.Figure:
+def create_failure_analysis_plot(
+    df: pd.DataFrame, selected_groups: List[str], config: Dict
+) -> go.Figure:
     """Shows common failure reasons by model."""
     fig = go.Figure()
-    if df.empty or not selected_cases:
+    plot_config = config["plots"]["failure_analysis"]
+    if df.empty or not selected_groups or not plot_config.get("enabled", False):
         return fig.update_layout(title="No data available for selected filters.")
 
-    df_filtered = df[df["difficulty"].isin(selected_cases)]
+    grouping_col = config["grouping"]["target_column"]
+    df_filtered = df[df[grouping_col].isin(selected_groups)]
     models = sorted(df_filtered["Model"].unique())
-    
-    failure_counts = {
-        "Invalid Diagram": [],
-        "MCP Tool Failure": [],
-        "Usage Limit Exceeded": [],
-    }
+
+    failure_series = plot_config["series"]
+    failure_counts = {series["name"]: [] for series in failure_series}
 
     for model in models:
         model_data = df_filtered[df_filtered["Model"] == model]
-        failure_counts["Invalid Diagram"].append((model_data["Score_MermaidDiagramValid"] == 0).sum())
-        failure_counts["MCP Tool Failure"].append((model_data["Score_UsedBothMCPTools"] < 1).sum())
-        failure_counts["Usage Limit Exceeded"].append((model_data["Score_UsageLimitNotExceeded"] == 0).sum())
+        for series in failure_series:
+            # Use pandas.eval to safely evaluate the condition string
+            count = model_data.eval(f"`{series['column']}` {series['condition']}").sum()
+            failure_counts[series["name"]].append(count)
 
     for reason, counts in failure_counts.items():
         fig.add_trace(go.Bar(name=reason, x=models, y=counts))
 
     fig.update_layout(
-        title="Failure Analysis by Reason",
+        title=plot_config["title"],
         xaxis_title="Model",
         yaxis_title="Number of Failures",
         barmode="stack",
@@ -282,25 +383,31 @@ def create_failure_analysis_plot(df: pd.DataFrame, selected_cases: List[str]) ->
     return fig
 
 
-def create_token_breakdown_plot(df: pd.DataFrame, selected_cases: List[str]) -> go.Figure:
+def create_token_breakdown_plot(
+    df: pd.DataFrame, selected_groups: List[str], config: Dict
+) -> go.Figure:
     """Creates a stacked bar chart showing token breakdown."""
     fig = go.Figure()
-    if df.empty or not selected_cases:
+    plot_config = config["plots"]["token_breakdown"]
+    if df.empty or not selected_groups or not plot_config.get("enabled", False):
         return fig.update_layout(title="No data available for selected filters.")
 
-    df_filtered = df[df["difficulty"].isin(selected_cases)]
-    token_data = df_filtered.groupby("Model").agg(
-        Request=("Metric_request_tokens", "mean"),
-        Response=("Metric_response_tokens", "mean"),
-        Thinking=("thinking_tokens", "mean"),
-    ).reset_index()
+    grouping_col = config["grouping"]["target_column"]
+    df_filtered = df[df[grouping_col].isin(selected_groups)]
 
-    fig.add_trace(go.Bar(name="Request", x=token_data["Model"], y=token_data["Request"]))
-    fig.add_trace(go.Bar(name="Response", x=token_data["Model"], y=token_data["Response"]))
-    fig.add_trace(go.Bar(name="Thinking", x=token_data["Model"], y=token_data["Thinking"]))
+    series_config = plot_config["series"]
+    agg_dict = {series["name"]: (series["column"], "mean") for series in series_config}
+    token_data = df_filtered.groupby("Model").agg(**agg_dict).reset_index()
+
+    for series in series_config:
+        fig.add_trace(
+            go.Bar(
+                name=series["name"], x=token_data["Model"], y=token_data[series["name"]]
+            )
+        )
 
     fig.update_layout(
-        title="Average Token Usage by Type",
+        title=plot_config["title"],
         xaxis_title="Model",
         yaxis_title="Average Tokens",
         barmode="stack",
@@ -310,23 +417,31 @@ def create_token_breakdown_plot(df: pd.DataFrame, selected_cases: List[str]) -> 
     return fig
 
 
-def create_cost_breakdown_plot(df: pd.DataFrame, selected_cases: List[str]) -> go.Figure:
+def create_cost_breakdown_plot(
+    df: pd.DataFrame, selected_groups: List[str], config: Dict
+) -> go.Figure:
     """Creates a stacked bar chart for cost breakdown."""
     fig = go.Figure()
-    if df.empty or not selected_cases:
+    plot_config = config["plots"]["cost_breakdown"]
+    if df.empty or not selected_groups or not plot_config.get("enabled", False):
         return fig.update_layout(title="No data available for selected filters.")
 
-    df_filtered = df[df["difficulty"].isin(selected_cases)]
-    cost_data = df_filtered.groupby("Model").agg(
-        Input=("input_cost", "mean"),
-        Output=("output_cost", "mean"),
-    ).reset_index()
+    grouping_col = config["grouping"]["target_column"]
+    df_filtered = df[df[grouping_col].isin(selected_groups)]
 
-    fig.add_trace(go.Bar(name="Input Cost", x=cost_data["Model"], y=cost_data["Input"]))
-    fig.add_trace(go.Bar(name="Output Cost", x=cost_data["Model"], y=cost_data["Output"]))
+    series_config = plot_config["series"]
+    agg_dict = {series["name"]: (series["column"], "mean") for series in series_config}
+    cost_data = df_filtered.groupby("Model").agg(**agg_dict).reset_index()
+
+    for series in series_config:
+        fig.add_trace(
+            go.Bar(
+                name=series["name"], x=cost_data["Model"], y=cost_data[series["name"]]
+            )
+        )
 
     fig.update_layout(
-        title="Average Cost Breakdown by Type",
+        title=plot_config["title"],
         xaxis_title="Model",
         yaxis_title="Average Cost ($)",
         barmode="stack",
@@ -338,16 +453,20 @@ def create_cost_breakdown_plot(df: pd.DataFrame, selected_cases: List[str]) -> g
 
 def main():
     """Main Streamlit application entrypoint."""
-    st.title("🏆 Merbench")
+    eval_config = EVAL_CONFIG  # Use the validated config
+
+    st.title(eval_config.title)
     st.subheader("LLM Evaluation Benchmark Dashboard")
 
     # --- Sidebar Setup ---
     st.sidebar.header("⚙️ Configuration")
-    
+
     # File selection
-    default_dir_path = os.path.dirname(detect_csv_files()[0]) if detect_csv_files() else ""
+    default_dir_path = (
+        os.path.dirname(detect_csv_files()[0]) if detect_csv_files() else ""
+    )
     custom_dir = st.sidebar.text_input("Results Directory:", value=default_dir_path)
-    
+
     if st.sidebar.button("🔄 Refresh Files"):
         st.rerun()
 
@@ -361,7 +480,7 @@ def main():
         options=[os.path.basename(f) for f in csv_files],
         default=[os.path.basename(f) for f in csv_files],
     )
-    
+
     if not selected_files:
         st.info("Select one or more result files to begin analysis.")
         return
@@ -369,13 +488,13 @@ def main():
     # --- Data Loading and Filtering ---
     full_file_paths = [os.path.join(custom_dir, f) for f in selected_files]
     df_initial = load_csv_data(full_file_paths)
-    
+
     if df_initial.empty:
         st.error("No data loaded. Please check the selected files.")
         return
 
     available_models = sorted(df_initial["Model"].unique())
-    
+
     # Cost configuration in sidebar
     st.sidebar.subheader("💰 Cost Configuration")
     cost_config = {}
@@ -383,55 +502,57 @@ def main():
         for model in available_models:
             cols = st.columns(2)
             default = DEFAULT_COSTS.get(model, {"input": 0.0, "output": 0.0})
-            input_cost = cols[0].number_input(f"{model} Input", value=float(default["input"]), step=0.01, format="%.2f")
-            output_cost = cols[1].number_input(f"{model} Output", value=float(default["output"]), step=0.01, format="%.2f")
+            input_cost = cols[0].number_input(
+                f"{model} Input",
+                value=float(default["input"]),
+                step=0.01,
+                format="%.2f",
+            )
+            output_cost = cols[1].number_input(
+                f"{model} Output",
+                value=float(default["output"]),
+                step=0.01,
+                format="%.2f",
+            )
             cost_config[model] = {"input": input_cost, "output": output_cost}
 
-    df = process_data(df_initial, cost_config)
+    df = process_data(df_initial, cost_config, eval_config)
 
-    # Difficulty filter
-    st.sidebar.subheader("🎯 Difficulty Filter")
-    available_difficulties = sorted(df["difficulty"].unique())
-    selected_difficulties = st.sidebar.multiselect(
-        "Filter by difficulty:",
-        options=available_difficulties,
-        default=available_difficulties,
+    # Grouping filter
+    grouping_config = eval_config.grouping
+    st.sidebar.subheader(f"🎯 {grouping_config.label} Filter")
+    available_groups = sorted(df[grouping_config.target_column].unique())
+    selected_groups = st.sidebar.multiselect(
+        f"Filter by {grouping_config.label.lower()}:",
+        options=available_groups,
+        default=available_groups,
     )
 
     # --- Main Panel ---
     st.header("📊 Overview")
-    
+
     # Key metrics
     cols = st.columns(4)
     cols[0].metric("Evaluation Runs", len(df))
     cols[1].metric("Models Evaluated", df["Model"].nunique())
-    cols[2].metric("Test Cases", df["Case"].nunique())
+    cols[2].metric("Test Cases", df[grouping_config.column].nunique())
     cols[3].metric("Files Loaded", len(selected_files))
 
-    st.info(f"**Showing results for difficulties:** {', '.join(selected_difficulties) if selected_difficulties else 'None'}")
+    st.info(
+        f"**Showing results for {grouping_config.label.lower()}:** {', '.join(selected_groups) if selected_groups else 'None'}"
+    )
 
     # --- Leaderboard & Pareto ---
     st.header("🏅 Leaderboard")
-    leaderboard_df = create_leaderboard(df, selected_difficulties)
-    
+    leaderboard_df = create_leaderboard(df, selected_groups, eval_config.model_dump())
+
     if not leaderboard_df.empty:
-        st.markdown("""
-        <style>
-            /* Target the 'Correct' column's progress bar (2nd column) */
-            .stDataFrame [data-testid="stDataFrameApp"] div:nth-child(2) [data-testid="stProgress"] > div > div > div > div {
-                background-color: #28a745; /* Green */
-            }
-            /* Target the 'Cost' column's progress bar (3rd column) */
-            .stDataFrame [data-testid="stDataFrameApp"] div:nth-child(3) [data-testid="stProgress"] > div > div > div > div {
-                background-color: #007bff; /* Blue */
-            }
-        </style>
-        """, unsafe_allow_html=True)
+        primary_metric_label = eval_config.primary_metric.label
         st.dataframe(
             leaderboard_df,
             column_config={
                 "Correct": st.column_config.ProgressColumn(
-                    "Avg. Success",
+                    primary_metric_label,
                     format="%.1f%%",
                     min_value=0,
                     max_value=100,
@@ -442,32 +563,95 @@ def main():
                     min_value=0,
                     max_value=leaderboard_df["Cost"].max(),
                 ),
-                "Duration": st.column_config.NumberColumn("Avg Duration (s)", format="%.2fs"),
+                "Duration": st.column_config.NumberColumn(
+                    "Avg Duration (s)", format="%.2fs"
+                ),
                 "Tokens": st.column_config.NumberColumn("Avg Tokens", format="%.0f"),
             },
-            column_order=["Model", "Correct", "Cost", "Duration", "Tokens", "Runs"],
             use_container_width=True,
         )
     else:
         st.warning("No data available for the current filter selection.")
 
     st.header("📈 Pareto Frontier Analysis")
-    x_axis_mode = st.radio("Compare performance against:", ["cost", "tokens"], format_func=lambda x: x.capitalize(), horizontal=True)
-    st.plotly_chart(create_pareto_frontier_plot(df, selected_difficulties, x_axis_mode), use_container_width=True)
+    pareto_config = eval_config.plots.pareto
+    x_axis_mode = st.radio(
+        "Compare performance against:",
+        list(pareto_config.x_axis_options.keys()),
+        format_func=lambda x: x.capitalize(),
+        horizontal=True,
+    )
+    st.plotly_chart(
+        create_pareto_frontier_plot(
+            df, selected_groups, x_axis_mode, eval_config.model_dump()
+        ),
+        use_container_width=True,
+    )
 
     # --- Deep Dive Analysis ---
     with st.expander("🔍 Deep Dive Analysis", expanded=False):
-        tab1, tab2, tab3, tab4 = st.tabs(["📊 Success Rates", "📉 Failure Analysis", "⚙️ Resource Usage", "📋 Raw Data"])
+        plot_configs = eval_config.plots
 
-        with tab1:
-            st.plotly_chart(create_success_rates_plot(df, selected_difficulties), use_container_width=True)
-        with tab2:
-            st.plotly_chart(create_failure_analysis_plot(df, selected_difficulties), use_container_width=True)
-        with tab3:
-            st.plotly_chart(create_token_breakdown_plot(df, selected_difficulties), use_container_width=True)
-            st.plotly_chart(create_cost_breakdown_plot(df, selected_difficulties), use_container_width=True)
-        with tab4:
-            st.dataframe(df[df["difficulty"].isin(selected_difficulties)], use_container_width=True)
+        # Build a dictionary of active plot configs
+        active_plots = {
+            name: plot
+            for name, plot in plot_configs.model_dump().items()
+            if plot.get("enabled")
+        }
+
+        tabs_to_create = {}
+        if "success_rates" in active_plots:
+            tabs_to_create["Success Rates"] = True
+        if "failure_analysis" in active_plots:
+            tabs_to_create["Failure Analysis"] = True
+        if "token_breakdown" in active_plots or "cost_breakdown" in active_plots:
+            tabs_to_create["Resource Usage"] = True
+        tabs_to_create["Raw Data"] = True
+
+        if tabs_to_create:
+            tabs = st.tabs(list(tabs_to_create.keys()))
+            tab_map = dict(zip(tabs_to_create.keys(), tabs))
+
+            if "Success Rates" in tab_map:
+                with tab_map["Success Rates"]:
+                    st.plotly_chart(
+                        create_success_rates_plot(
+                            df, selected_groups, eval_config.model_dump()
+                        ),
+                        use_container_width=True,
+                    )
+            if "Failure Analysis" in tab_map:
+                with tab_map["Failure Analysis"]:
+                    st.plotly_chart(
+                        create_failure_analysis_plot(
+                            df, selected_groups, eval_config.model_dump()
+                        ),
+                        use_container_width=True,
+                    )
+            if "Resource Usage" in tab_map:
+                with tab_map["Resource Usage"]:
+                    if "token_breakdown" in active_plots:
+                        st.plotly_chart(
+                            create_token_breakdown_plot(
+                                df, selected_groups, eval_config.model_dump()
+                            ),
+                            use_container_width=True,
+                        )
+                    if "cost_breakdown" in active_plots:
+                        st.plotly_chart(
+                            create_cost_breakdown_plot(
+                                df, selected_groups, eval_config.model_dump()
+                            ),
+                            use_container_width=True,
+                        )
+            if "Raw Data" in tab_map:
+                with tab_map["Raw Data"]:
+                    st.dataframe(
+                        df[
+                            df[eval_config.grouping.target_column].isin(selected_groups)
+                        ],
+                        use_container_width=True,
+                    )
 
 
 if __name__ == "__main__":
