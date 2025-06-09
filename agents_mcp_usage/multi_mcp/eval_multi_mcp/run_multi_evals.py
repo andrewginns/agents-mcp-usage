@@ -16,10 +16,8 @@ import asyncio
 import csv
 import os
 import statistics
-import sys
 from datetime import datetime
-from pathlib import Path
-from typing import Any, Dict, List, Optional, Set
+from typing import Any, Dict, List, Optional
 
 import logfire
 from dotenv import load_dotenv
@@ -39,9 +37,6 @@ from agents_mcp_usage.multi_mcp.eval_multi_mcp.evals_pydantic_mcp import (
     DEFAULT_MODELS,
     MermaidInput,
     MermaidOutput,
-    UsedBothMCPTools,
-    UsageLimitNotExceeded,
-    MermaidDiagramValid,
     fix_mermaid_diagram,
     create_evaluation_dataset,
     get_timestamp_prefix,
@@ -226,7 +221,7 @@ class MultiModelEvaluator:
 
             error_msg = f"Error during evaluation: {str(e)}"
             logfire.error(
-                "Evaluation error",
+                f"Evaluation error: {error_msg}",
                 model=model,
                 run_index=run_index,
                 error=str(e),
@@ -409,7 +404,7 @@ class MultiModelEvaluator:
         self, n_runs: int, parallel: bool = True, timeout: int = 120
     ) -> str:
         """Run evaluations for all models and return path to combined results."""
-        self.console.print(f"[bold green]Starting multi-model evaluation[/bold green]")
+        self.console.print("[bold green]Starting multi-model evaluation[/bold green]")
         self.console.print(f"Models: {', '.join(self.models)}")
         self.console.print(f"Runs per model: {n_runs}")
         self.console.print(f"Parallel execution: {parallel}")
@@ -424,7 +419,7 @@ class MultiModelEvaluator:
 
         self.print_final_summary()
 
-        self.console.print(f"\n[bold green]All evaluations complete![/bold green]")
+        self.console.print("\n[bold green]All evaluations complete![/bold green]")
         self.console.print(f"Combined results: {combined_file}")
 
         return combined_file

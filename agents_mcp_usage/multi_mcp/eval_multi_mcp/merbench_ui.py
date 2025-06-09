@@ -3,13 +3,10 @@ import glob
 import pandas as pd
 import plotly.graph_objects as go
 import streamlit as st
-import numpy as np
 from typing import List, Dict
 import json
 import re
 from pydantic import ValidationError
-import csv
-import io
 
 from agents_mcp_usage.multi_mcp.eval_multi_mcp.dashboard_config import (
     DEFAULT_CONFIG,

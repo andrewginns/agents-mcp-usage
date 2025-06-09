@@ -18,7 +18,7 @@ import csv
 import os
 import random
 from datetime import datetime
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List
 
 import logfire
 from dotenv import load_dotenv

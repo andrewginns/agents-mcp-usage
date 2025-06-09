@@ -3,7 +3,7 @@ Pydantic Schemas for Dashboard Configuration Validation
 """
 
 from pydantic import BaseModel, Field, validator
-from typing import List, Dict, Optional, Any
+from typing import List, Dict, Optional
 
 
 class PrimaryMetricConfig(BaseModel):
