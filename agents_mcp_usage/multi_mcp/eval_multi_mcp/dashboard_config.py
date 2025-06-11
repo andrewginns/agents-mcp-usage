@@ -25,7 +25,8 @@ MERBENCH_CONFIG = {
         "\n\nMerbench tests this ability by providing an LLM Agent access to an MCP server that both validates "
         "and provides error messages to guide correction of syntax. There are three different difficulty levels (test cases), "
         "and the LLM is given a fixed number of attempts to fix the diagram, if this is exceeded, the test case is considered failed. "
-        "\n\nThis leaderboard shows the average success rate across all selected models and difficulty levels."
+        "\n\n **Performance is a measure of both tool usage, and Mermaid syntax understanding.**"
+        "\n\nThe leaderboard shows the average success rate across all selected models and difficulty levels over *n runs*."
     ),
     "icon": "🧜‍♀️",  # Emoji for the browser tab
     # --- Primary Metric Configuration ---
