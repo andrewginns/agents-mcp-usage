@@ -93,6 +93,7 @@ class CostCalculationConfig(BaseModel):
 
 class DashboardConfig(BaseModel):
     title: str
+    description: str
     icon: str
     primary_metric: PrimaryMetricConfig
     grouping: GroupingConfig

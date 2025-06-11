@@ -653,7 +653,7 @@ def main() -> None:
     eval_config = EVAL_CONFIG  # Use the validated config
 
     st.title(eval_config.title)
-    st.subheader("LLM Evaluation Benchmark Dashboard")
+    st.markdown(eval_config.description)
 
     # --- Sidebar Setup ---
     st.sidebar.header("⚙️ Data Configuration")
@@ -817,7 +817,7 @@ def main() -> None:
     else:
         st.warning("No data available for the current filter selection.")
 
-    st.header("📈 Pareto Frontier Analysis")
+    st.header("📈 Pareto Frontier")
     pareto_config = eval_config.plots.pareto
     x_axis_mode = st.radio(
         "Compare performance against:",
