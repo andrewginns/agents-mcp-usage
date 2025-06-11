@@ -112,4 +112,24 @@ MODEL_COSTS = {
         "input": [{"up_to": float('inf'), "price": 0.10}],
         "output": {"default": [{"up_to": float('inf'), "price": 0.40}]},
     },
+    "bedrock:us.anthropic.claude-sonnet-4-20250514-v1:0": {
+        "input": [{"up_to": float('inf'), "price": 3.00}],
+        "output": {"default": [{"up_to": float('inf'), "price": 15.00}]},
+    },
+    "bedrock:us.anthropic.claude-opus-4-20250514-v1:0": {
+        "input": [{"up_to": float('inf'), "price": 15.00}],
+        "output": {"default": [{"up_to": float('inf'), "price": 75.00}]},
+    },
+    "bedrock:us.anthropic.claude-3-7-sonnet-20250219-v1:0": {
+        "input": [{"up_to": float('inf'), "price": 3.00}],
+        "output": {"default": [{"up_to": float('inf'), "price": 15.00}]},
+    },
+    "bedrock:us.anthropic.claude-3-5-sonnet-20240620-v1:0": {
+        "input": [{"up_to": float('inf'), "price": 3.00}],
+        "output": {"default": [{"up_to": float('inf'), "price": 15.00}]},
+    },
+    "bedrock:us.anthropic.claude-3-5-haiku-20241022-v1:0": {
+        "input": [{"up_to": float('inf'), "price": 1.00}],
+        "output": {"default": [{"up_to": float('inf'), "price": 4.00}]},
+    },
 }
