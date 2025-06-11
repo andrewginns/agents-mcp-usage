@@ -781,7 +781,7 @@ def main() -> None:
     cols[3].metric("Files Loaded", len(selected_files))
 
     st.info(
-        f"**Showing results for {grouping_config.label.lower()}:** {', '.join(selected_groups) if selected_groups else 'None'}"
+        f"**Showing averaged results for {grouping_config.label.lower()}:** {', '.join(selected_groups) if selected_groups else 'None'}"
     )
 
     # --- Leaderboard & Pareto ---

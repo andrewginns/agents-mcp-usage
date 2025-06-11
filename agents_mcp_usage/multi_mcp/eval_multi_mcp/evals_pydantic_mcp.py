@@ -49,12 +49,7 @@ logfire.instrument_mcp()
 logfire.instrument_pydantic_ai()
 
 # Default model configurations
-DEFAULT_MODEL = "gemini-2.5-pro-preview-05-06"
-DEFAULT_MODELS = [
-    "gemini-2.5-pro-preview-06-05",
-    "gemini-2.0-flash",
-    "gemini-2.5-flash-preview-04-17",
-]
+DEFAULT_MODEL = "gemini-2.5-pro-preview-06-05"
 
 # Retry configuration
 RETRYABLE_HTTP_STATUS_CODES = {429, 500, 502, 503, 504}
@@ -765,9 +760,9 @@ async def run_evaluations(
 if __name__ == "__main__":
     # You can use different models for the agent and the judge
     # agent_model = os.getenv("AGENT_MODEL", DEFAULT_MODEL)
-    agent_model = "gemini-2.5-pro-preview-06-05"
+    # agent_model = "gemini-2.5-pro-preview-06-05"
     # agent_model = "openai:o4-mini"
-    # agent_model = "gemini-2.5-flash-preview-04-17"
+    agent_model = "gemini-2.5-flash-preview-04-17"
     judge_model = os.getenv("JUDGE_MODEL", DEFAULT_MODEL)
 
     async def run_all():

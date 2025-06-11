@@ -34,7 +34,6 @@ from rich.table import Table
 
 # Import shared functionality from the improved evals module
 from agents_mcp_usage.multi_mcp.eval_multi_mcp.evals_pydantic_mcp import (
-    DEFAULT_MODELS,
     MermaidInput,
     MermaidOutput,
     fix_mermaid_diagram,
@@ -43,6 +42,12 @@ from agents_mcp_usage.multi_mcp.eval_multi_mcp.evals_pydantic_mcp import (
 )
 
 load_dotenv()
+
+DEFAULT_MODELS = [
+    # "gemini-2.5-pro-preview-06-05",
+    "gemini-2.0-flash",
+    "gemini-2.5-flash-preview-04-17",
+]
 
 logfire.configure(
     send_to_logfire="if-token-present", service_name="multi-model-mermaid-evals"
@@ -496,7 +501,7 @@ async def main() -> None:
     parser.add_argument(
         "--judge-model",
         type=str,
-        default="gemini-2.5-pro-preview-03-25",
+        default="gemini-2.5-pro-preview-06-05",
         help="Model to use for LLM judging",
     )
     parser.add_argument(

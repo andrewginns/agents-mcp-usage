@@ -2,6 +2,18 @@
 # Gemini prices from https://ai.google.dev/gemini-api/docs/pricing
 # OpenAI prices from https://openai.com/api/pricing/
 MODEL_COSTS = {
+    "gemini-2.5-pro-preview-03-25": {
+        "input": [
+            {"up_to": 200000, "price": 1.25},
+            {"up_to": float('inf'), "price": 2.50},
+        ],
+        "output": {
+            "default": [
+                {"up_to": 200000, "price": 10.00},
+                {"up_to": float('inf'), "price": 15.00},
+            ]
+        },
+    },
     "gemini-2.5-pro-preview-05-06": {
         "input": [
             {"up_to": 200000, "price": 1.25},
