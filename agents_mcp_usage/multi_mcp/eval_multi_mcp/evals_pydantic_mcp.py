@@ -209,6 +209,30 @@ def create_agent(
     if model_settings is None:
         model_settings = {}
 
+    # Handle Bedrock models specifically
+    if model.startswith("bedrock:"):
+        from pydantic_ai.models.bedrock import BedrockConverseModel
+        from pydantic_ai.providers.bedrock import BedrockProvider
+
+        # Extract the model name (remove "bedrock:" prefix)
+        model_name = model.replace("bedrock:", "")
+
+        # Create BedrockConverseModel with proper region and profile configuration
+        bedrock_model = BedrockConverseModel(
+            model_name,
+            provider=BedrockProvider(
+                region_name=os.getenv("AWS_REGION", "us-east-1"),
+                profile_name=os.getenv("AWS_PROFILE", "my-aws-profile"),
+            ),
+        )
+
+        return Agent(
+            bedrock_model,
+            mcp_servers=get_mcp_servers(),
+            model_settings=model_settings,
+        )
+
+    # For non-Bedrock models, use the original approach
     return Agent(
         model,
         mcp_servers=get_mcp_servers(),
