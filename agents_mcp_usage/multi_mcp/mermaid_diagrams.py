@@ -198,7 +198,7 @@ graph LR
 ```
 """
 
-valid_mermaid_diagram = """`
+valid_mermaid_diagram = """
 ```mermaid
 graph LR
     User((User)) --> |"Run script<br>(e.g., pydantic_mcp.py)"| Agent

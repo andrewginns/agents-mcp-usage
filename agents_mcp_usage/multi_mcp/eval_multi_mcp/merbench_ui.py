@@ -55,7 +55,11 @@ def load_model_costs(file_path: str) -> tuple[Dict, Dict]:
                 return {}, {}
 
             # Safely evaluate the dictionary strings
-            model_costs_raw = eval(costs_match.group(1), {"float": float})
+            # Handle float('inf') which ast.literal_eval cannot parse
+            costs_string = costs_match.group(1)
+            costs_string = costs_string.replace("float('inf')", "float('inf')")
+            # Use eval with restricted globals for this specific case
+            model_costs_raw = eval(costs_string, {"__builtins__": {}, "float": float})
 
             # Extract friendly names from the inline entries
             friendly_names = {}
