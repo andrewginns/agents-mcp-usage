@@ -2,8 +2,8 @@
 Pydantic Schemas for Dashboard Configuration Validation
 """
 
-from pydantic import BaseModel, Field, validator
-from typing import List, Dict, Optional, Any
+from pydantic import BaseModel, Field, field_validator, model_validator
+from typing import List, Dict, Optional
 
 
 class PrimaryMetricConfig(BaseModel):
@@ -15,7 +15,8 @@ class PrimaryMetricConfig(BaseModel):
         description="Optional source column to calculate the primary metric from if it doesn't exist.",
     )
 
-    @validator("goal")
+    @field_validator("goal")
+    @classmethod
     def goal_must_be_max_or_min(cls, v: str) -> str:
         """Validates that the goal is either 'maximize' or 'minimize'."""
         if v not in ["maximize", "minimize"]:
@@ -65,17 +66,15 @@ class BarPlotConfig(BaseModel):
     y_columns: Optional[List[str]] = None
     series: Optional[List[StackedBarPlotSeries]] = None
 
-    @validator("y_columns", always=True)
-    def check_prefix_or_columns(
-        cls, v: Optional[List[str]], values: Dict[str, Any]
-    ) -> Optional[List[str]]:
+    @model_validator(mode="after")
+    def check_prefix_or_columns(self) -> "BarPlotConfig":
         """Validates that either 'y_prefix' or 'y_columns' is provided for grouped_bar plots."""
-        if not values.get("y_prefix") and not v:
-            if values.get("type") == "grouped_bar":
+        if not self.y_prefix and not self.y_columns:
+            if self.type == "grouped_bar":
                 raise ValueError(
                     "Either 'y_prefix' or 'y_columns' must be provided for grouped_bar plots."
                 )
-        return v
+        return self
 
 
 class PlotConfig(BaseModel):
