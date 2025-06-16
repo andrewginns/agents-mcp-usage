@@ -419,6 +419,7 @@ def create_pareto_frontier_plot(
             y_axis=(primary_metric_name, "mean"),
             total_cost=("total_cost", "mean"),
             total_response_tokens=("total_response_tokens", "mean"),
+            Duration=("Duration", "mean"),
             color_axis=(plot_config["color_axis"], "mean"),
         )
         .reset_index()
@@ -428,7 +429,12 @@ def create_pareto_frontier_plot(
     x_data = model_metrics[x_axis_config["column"]]
     x_title = x_axis_config["label"]
     hover_label = x_axis_config["label"]
-    hover_format = ":.4f" if x_axis_mode == "cost" else ":.0f"
+    if x_axis_mode == "cost":
+        hover_format = ":.4f"
+    elif x_axis_mode == "duration":
+        hover_format = ":.2f"
+    else:
+        hover_format = ":.0f"
 
     fig.add_trace(
         go.Scatter(

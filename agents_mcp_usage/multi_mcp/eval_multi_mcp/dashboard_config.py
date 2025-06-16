@@ -58,6 +58,7 @@ MERBENCH_CONFIG = {
             "x_axis_options": {
                 "cost": {"column": "total_cost", "label": "Cost"},
                 "tokens": {"column": "total_response_tokens", "label": "Tokens"},
+                "duration": {"column": "Duration", "label": "Duration"},
             },
             "color_axis": "Duration",  # Column to use for the color scale
         },
