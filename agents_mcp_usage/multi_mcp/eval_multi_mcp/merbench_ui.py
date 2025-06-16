@@ -30,64 +30,64 @@ st.set_page_config(
 
 
 def load_model_costs(file_path: str) -> tuple[Dict, Dict]:
-    """Loads model costs and friendly names from a CSV file and returns structured dictionaries.
+    """Loads model costs and friendly names from a JSON file and returns structured dictionaries.
 
     Args:
-        file_path: The path to the cost file.
+        file_path: The path to the cost file (JSON or CSV).
 
     Returns:
         A tuple containing (model_costs_dict, friendly_names_dict).
     """
+    import json
+    
+    # Try JSON first (new format), then fall back to CSV (old format)
+    json_path = file_path.replace('.csv', '.json')
+    
     try:
-        with open(file_path, "r", encoding="utf-8") as f:
-            # Read lines, skipping comments and empty lines
-            lines = [
-                line for line in f if not line.strip().startswith("#") and line.strip()
-            ]
-
-            # Find the start of the dictionary-like definitions
-            dict_str = "".join(lines)
-
-            # Extract MODEL_COSTS
-            costs_match = re.search(r"MODEL_COSTS\s*=\s*({.*})", dict_str, re.DOTALL)
-            if not costs_match:
-                st.error(f"Could not find 'MODEL_COSTS' dictionary in {file_path}")
-                return {}, {}
-
-            # Safely evaluate the dictionary strings
-            # Handle float('inf') which ast.literal_eval cannot parse
-            costs_string = costs_match.group(1)
-            costs_string = costs_string.replace("float('inf')", "float('inf')")
-            # Use eval with restricted globals for this specific case
-            model_costs_raw = eval(costs_string, {"__builtins__": {}, "float": float})
-
-            # Extract friendly names from the inline entries
+        # Try to load JSON format first
+        with open(json_path, "r", encoding="utf-8") as f:
+            data = json.load(f)
+            model_costs_raw = data["model_costs"]
+            
+            # Extract friendly names and clean cost data
             friendly_names = {}
             model_costs_clean = {}
-
+            
             for model_id, model_data in model_costs_raw.items():
                 # Extract friendly name if it exists
                 if isinstance(model_data, dict) and "friendly_name" in model_data:
                     friendly_names[model_id] = model_data["friendly_name"]
                     # Create a clean copy without the friendly_name for cost calculations
                     model_costs_clean[model_id] = {
-                        key: value
+                        key: _convert_inf_strings(value) if key in ["input", "output"] else value
                         for key, value in model_data.items()
                         if key != "friendly_name"
                     }
                 else:
                     # No friendly name, use model_id as fallback
                     friendly_names[model_id] = model_id
-                    model_costs_clean[model_id] = model_data
-
+                    model_costs_clean[model_id] = _convert_inf_strings(model_data)
+            
             return model_costs_clean, friendly_names
-
+            
     except FileNotFoundError:
-        st.warning(f"Cost file not found at {file_path}. Using empty cost config.")
+        st.warning(f"Cost file not found at {json_path}. Using empty cost config.")
         return {}, {}
-    except (SyntaxError, NameError, Exception) as e:
-        st.error(f"Error parsing cost file {file_path}: {e}")
+    except (json.JSONDecodeError, KeyError, Exception) as e:
+        st.error(f"Error parsing JSON cost file {json_path}: {e}")
         return {}, {}
+
+
+def _convert_inf_strings(data):
+    """Recursively convert 'inf' strings to float('inf') in nested data structures."""
+    if isinstance(data, dict):
+        return {key: _convert_inf_strings(value) for key, value in data.items()}
+    elif isinstance(data, list):
+        return [_convert_inf_strings(item) for item in data]
+    elif data == "inf":
+        return float('inf')
+    else:
+        return data
 
 
 # --- Data Loading and Processing ---
