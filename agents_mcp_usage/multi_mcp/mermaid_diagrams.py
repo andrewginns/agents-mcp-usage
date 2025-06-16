@@ -5,6 +5,7 @@ graph LR
 
     # Agent Frameworks
     subgraph "Agent"
+        direction TD
         Agent[Agent]
         ADK["Google ADK<br>(adk_mcp.py)"]
         LG["LangGraph<br>(langgraph_mcp.py)"]
@@ -21,7 +22,7 @@ graph LR
     subgraph "MCP"
         direction TD
         MCP["Model Context Protocol Server<br>(mcp_servers/example_server.py)"]
-        Tools["Tools<br>- add(a, b)<br>- get_current_time() e.g. {current_time}"]
+        Tools["Tools<br>- add(a, b)<br>- get_current_time() {current_time}"]
         Resources["Resources<br>- greeting://{{name}}"]
         MCP --- Tools
         MCP --- Resources
@@ -38,7 +39,7 @@ graph LR
     Logfire[("Logfire<br>Tracing")]
 
     ADK --> MCP
-    LG --> MCP
+    LG -- > MCP
     OAI --> MCP
     PYD --> MCP
 
@@ -47,7 +48,7 @@ graph LR
     MCP --> OTHER
 
     ADK --> Logfire
-    LG --> Logfire
+    LG -- > Logfire
     OAI --> Logfire
     PYD --> Logfire
 
@@ -63,6 +64,7 @@ graph LR
 ```
 """
 
+# 7 syntax errors
 invalid_mermaid_diagram_medium = """
 ```mermaid
 graph LR
@@ -87,13 +89,15 @@ graph LR
     subgraph "MCP"
         direction TB
         MCP["Model Context Protocol Server<br>(mcp_servers/example_server.py)"]
-        Tools["Tools<br>- add(a, b)<br>- get_current_time() e.g. {current_time}"]
+        Tools["Tools<br>- add(a, b)<br>- get_current_time() {current_time}"]
         Resources["Resources<br>- greeting://{{name}}"]
         MCP --- Tools
         MCP --- Resources
     end
 
+    # LLM Providers
     subgraph "LLM Providers"
+        direction TB
         OAI_LLM["OpenAI Models"]
         GEM["Google Gemini Models"]
         OTHER["Other LLM Providers..."]
@@ -102,7 +106,7 @@ graph LR
     Logfire[("Logfire<br>Tracing")]
 
     ADK --> MCP
-    LG --> MCP
+    LG -- > MCP
     OAI --> MCP
     PYD --> MCP
 
@@ -111,7 +115,7 @@ graph LR
     MCP --> OTHER
 
     ADK --> Logfire
-    LG --> Logfire
+    LG -- > Logfire
     OAI --> Logfire
     PYD --> Logfire
 
@@ -127,6 +131,7 @@ graph LR
 ```
 """
 
+# 2 syntax errors
 invalid_mermaid_diagram_easy = """
 ```mermaid
 graph LR
@@ -148,16 +153,18 @@ graph LR
     end
 
     %% MCP Server
-    subgraph "MCP Server"
+    subgraph "MCP"
         direction TB
         MCP["Model Context Protocol Server<br>(mcp_servers/example_server.py)"]
-        Tools["Tools<br>- add(a, b)<br>- get_current_time() e.g. {current_time}"]
+        Tools["Tools<br>- add(a, b)<br>- get_current_time() {current_time}"]
         Resources["Resources<br>- greeting://{{name}}"]
-        MCPs --- Tools
-        MCPs --- Resources
+        MCP --- Tools
+        MCP --- Resources
     end
 
+    %% LLM Providers
     subgraph "LLM Providers"
+        direction TB
         OAI_LLM["OpenAI Models"]
         GEM["Google Gemini Models"]
         OTHER["Other LLM Providers..."]
@@ -171,7 +178,7 @@ graph LR
     PYD --> MCP
 
     MCP --> OAI_LLM
-    MCP --> GEM
+    MCP --> GEMINI
     MCP --> OTHER
 
     ADK --> Logfire
@@ -191,7 +198,7 @@ graph LR
 ```
 """
 
-valid_mermaid_diagram = """`
+valid_mermaid_diagram = """
 ```mermaid
 graph LR
     User((User)) --> |"Run script<br>(e.g., pydantic_mcp.py)"| Agent
@@ -215,13 +222,15 @@ graph LR
     subgraph "MCP Server"
         direction TB
         MCP["Model Context Protocol Server<br>(mcp_servers/example_server.py)"]
-        Tools["Tools<br>- add(a, b)<br>- get_current_time() e.g. {current_time}"]
+        Tools["Tools<br>- add(a, b)<br>- get_current_time() {current_time}"]
         Resources["Resources<br>- greeting://{{name}}"]
         MCP --- Tools
         MCP --- Resources
     end
 
+    %% LLM Providers
     subgraph "LLM Providers"
+        direction TB
         OAI_LLM["OpenAI Models"]
         GEM["Google Gemini Models"]
         OTHER["Other LLM Providers..."]

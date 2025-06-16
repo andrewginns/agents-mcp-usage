@@ -34,7 +34,6 @@ from rich.table import Table
 
 # Import shared functionality from the improved evals module
 from agents_mcp_usage.multi_mcp.eval_multi_mcp.evals_pydantic_mcp import (
-    DEFAULT_MODELS,
     MermaidInput,
     MermaidOutput,
     fix_mermaid_diagram,
@@ -43,6 +42,23 @@ from agents_mcp_usage.multi_mcp.eval_multi_mcp.evals_pydantic_mcp import (
 )
 
 load_dotenv()
+
+DEFAULT_MODELS = [
+    # "gemini-2.5-pro-preview-06-05",
+    # "gemini-2.5-pro-preview-05-06",
+    # "gemini-2.5-pro-preview-03-25",
+    "gemini-2.0-flash",
+    "gemini-2.5-flash-preview-04-17",
+    # "openai:o4-mini",
+    # "openai:gpt-4.1",
+    # "openai:gpt-4.1-mini",
+    # "openai:gpt-4.1-nano",
+    # "bedrock:us.anthropic.claude-sonnet-4-20250514-v1:0",
+    # "bedrock:us.anthropic.claude-opus-4-20250514-v1:0",
+    # "bedrock:us.anthropic.claude-3-7-sonnet-20250219-v1:0",
+    # "bedrock:us.anthropic.claude-3-5-sonnet-20240620-v1:0",
+    # "bedrock:us.anthropic.claude-3-5-haiku-20241022-v1:0",
+]
 
 logfire.configure(
     send_to_logfire="if-token-present", service_name="multi-model-mermaid-evals"
@@ -496,13 +512,13 @@ async def main() -> None:
     parser.add_argument(
         "--judge-model",
         type=str,
-        default="gemini-2.5-pro-preview-03-25",
+        default="gemini-2.5-pro-preview-06-05",
         help="Model to use for LLM judging",
     )
     parser.add_argument(
         "--parallel",
         action="store_true",
-        default=True,
+        default=False,
         help="Run evaluations in parallel",
     )
     parser.add_argument(

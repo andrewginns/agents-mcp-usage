@@ -60,10 +60,6 @@ This project aims to teach:
     - `oai-agent_mcp.py` - Example of using MCP with OpenAI Agents
     - `pydantic_mcp.py` - Example of using MCP with Pydantic-AI
 
-  - **eval_basic_mcp_use/** - Contains evaluation examples for single MCP usage:
-    - `evals_adk_mcp.py` - Evaluation of MCP with Google's ADK
-    - `evals_langchain_mcp.py` - Evaluation of MCP with LangGraph
-    - `evals_pydantic_mcp.py` - Evaluation of MCP with Pydantic-AI
 
 - **[agents_mcp_usage/multi_mcp/](agents_mcp_usage/multi_mcp/)** - Advanced multi-MCP server integration examples
   - **multi_mcp_use/** - Contains examples of using multiple MCP servers simultaneously:

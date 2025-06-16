@@ -19,8 +19,16 @@ the available options.
 
 MERBENCH_CONFIG = {
     # --- General Dashboard Settings ---
-    "title": "Merbench - LLM Evaluation Benchmark",
-    "icon": "🏆",  # Emoji for the browser tab
+    "title": "🧜‍♀️ Merbench - LLM Evaluation ",
+    "description": (
+        "Getting LLMs to consistently nail the mermaid diagram syntax can be... an adventure. "
+        "\n\nMerbench tests this ability by providing an LLM Agent access to an MCP server that both validates "
+        "and provides error messages to guide correction of syntax. There are three different difficulty levels (test cases), "
+        "and the LLM is given a fixed number of attempts to fix the diagram, if this is exceeded, the test case is considered failed. "
+        "\n\n **Performance is a measure of both tool usage, and Mermaid syntax understanding.**"
+        "\n\nThe leaderboard shows the average success rate across all selected models and difficulty levels over *n runs*."
+    ),
+    "icon": "🧜‍♀️",  # Emoji for the browser tab
     # --- Primary Metric Configuration ---
     # The primary metric is the main score used for the leaderboard and
     # the y-axis of the Pareto frontier plot.
@@ -50,6 +58,7 @@ MERBENCH_CONFIG = {
             "x_axis_options": {
                 "cost": {"column": "total_cost", "label": "Cost"},
                 "tokens": {"column": "total_response_tokens", "label": "Tokens"},
+                "duration": {"column": "Duration", "label": "Duration"},
             },
             "color_axis": "Duration",  # Column to use for the color scale
         },
