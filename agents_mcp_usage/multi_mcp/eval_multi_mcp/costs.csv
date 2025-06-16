@@ -1,8 +1,10 @@
 # Prices are per 1 million tokens
 # Gemini prices from https://ai.google.dev/gemini-api/docs/pricing
 # OpenAI prices from https://openai.com/api/pricing/
+
 MODEL_COSTS = {
     "gemini-2.5-pro-preview-03-25": {
+        "friendly_name": "Gemini 2.5 Pro Preview (Mar)",
         "input": [
             {"up_to": 200000, "price": 1.25},
             {"up_to": float('inf'), "price": 2.50},
@@ -15,6 +17,7 @@ MODEL_COSTS = {
         },
     },
     "gemini-2.5-pro-preview-05-06": {
+        "friendly_name": "Gemini 2.5 Pro Preview (May)",
         "input": [
             {"up_to": 200000, "price": 1.25},
             {"up_to": float('inf'), "price": 2.50},
@@ -27,6 +30,7 @@ MODEL_COSTS = {
         },
     },
     "gemini-2.5-pro-preview-06-05": {
+        "friendly_name": "Gemini 2.5 Pro Preview (Jun)",
         "input": [
             {"up_to": 200000, "price": 1.25},
             {"up_to": float('inf'), "price": 2.50},
@@ -39,6 +43,7 @@ MODEL_COSTS = {
         },
     },
     "gemini-2.5-pro-preview": {
+        "friendly_name": "Gemini 2.5 Pro Preview",
         "input": [
             {"up_to": 200000, "price": 1.25},
             {"up_to": float('inf'), "price": 2.50},
@@ -51,6 +56,7 @@ MODEL_COSTS = {
         },
     },
     "gemini-1.5-pro": {
+        "friendly_name": "Gemini 1.5 Pro",
         "input": [
             {"up_to": 128000, "price": 1.25},
             {"up_to": float('inf'), "price": 2.50},
@@ -63,6 +69,7 @@ MODEL_COSTS = {
         },
     },
     "gemini-1.5-flash": {
+        "friendly_name": "Gemini 1.5 Flash",
         "input": [
             {"up_to": 128000, "price": 0.075},
             {"up_to": float('inf'), "price": 0.15},
@@ -75,10 +82,12 @@ MODEL_COSTS = {
         },
     },
     "gemini-2.0-flash": {
+        "friendly_name": "Gemini 2.0 Flash",
         "input": [{"up_to": float('inf'), "price": 0.10}],
         "output": {"default": [{"up_to": float('inf'), "price": 0.40}]},
     },
     "gemini-2.5-flash-preview-04-17": {
+        "friendly_name": "Gemini 2.5 Flash Preview (Apr)",
         "input": [{"up_to": float('inf'), "price": 0.15}],
         "output": {
             "non_thinking": [{"up_to": float('inf'), "price": 0.60}],
@@ -86,6 +95,7 @@ MODEL_COSTS = {
         },
     },
     "gemini-2.5-flash-preview": {
+        "friendly_name": "Gemini 2.5 Flash Preview",
         "input": [{"up_to": float('inf'), "price": 0.15}],
         "output": {
             "non_thinking": [{"up_to": float('inf'), "price": 0.60}],
@@ -93,42 +103,52 @@ MODEL_COSTS = {
         },
     },
     "openai:o4-mini": {
+        "friendly_name": "OpenAI o4-mini",
         "input": [{"up_to": float('inf'), "price": 1.10}],
         "output": {"default": [{"up_to": float('inf'), "price": 4.40}]},
     },
     "openai:o3": {
+        "friendly_name": "OpenAI o3",
         "input": [{"up_to": float('inf'), "price": 10.00}],
         "output": {"default": [{"up_to": float('inf'), "price": 40.00}]},
     },
     "openai:gpt-4.1": {
+        "friendly_name": "GPT-4.1",
         "input": [{"up_to": float('inf'), "price": 2.00}],
         "output": {"default": [{"up_to": float('inf'), "price": 8.00}]},
     },
     "openai:gpt-4.1-mini": {
+        "friendly_name": "GPT-4.1 Mini",
         "input": [{"up_to": float('inf'), "price": 0.40}],
         "output": {"default": [{"up_to": float('inf'), "price": 1.60}]},
     },
     "openai:gpt-4.1-nano": {
+        "friendly_name": "GPT-4.1 Nano",
         "input": [{"up_to": float('inf'), "price": 0.10}],
         "output": {"default": [{"up_to": float('inf'), "price": 0.40}]},
     },
     "bedrock:us.anthropic.claude-sonnet-4-20250514-v1:0": {
+        "friendly_name": "Claude 4 Sonnet",
         "input": [{"up_to": float('inf'), "price": 3.00}],
         "output": {"default": [{"up_to": float('inf'), "price": 15.00}]},
     },
     "bedrock:us.anthropic.claude-opus-4-20250514-v1:0": {
+        "friendly_name": "Claude 4 Opus",
         "input": [{"up_to": float('inf'), "price": 15.00}],
         "output": {"default": [{"up_to": float('inf'), "price": 75.00}]},
     },
     "bedrock:us.anthropic.claude-3-7-sonnet-20250219-v1:0": {
+        "friendly_name": "Claude 3.7 Sonnet",
         "input": [{"up_to": float('inf'), "price": 3.00}],
         "output": {"default": [{"up_to": float('inf'), "price": 15.00}]},
     },
     "bedrock:us.anthropic.claude-3-5-sonnet-20240620-v1:0": {
+        "friendly_name": "Claude 3.5 Sonnet",
         "input": [{"up_to": float('inf'), "price": 3.00}],
         "output": {"default": [{"up_to": float('inf'), "price": 15.00}]},
     },
     "bedrock:us.anthropic.claude-3-5-haiku-20241022-v1:0": {
+        "friendly_name": "Claude 3.5 Haiku",
         "input": [{"up_to": float('inf'), "price": 1.00}],
         "output": {"default": [{"up_to": float('inf'), "price": 4.00}]},
     },

@@ -29,14 +29,14 @@ st.set_page_config(
 # --- Cost Loading ---
 
 
-def load_model_costs(file_path: str) -> Dict:
-    """Loads model costs from a CSV file and returns a structured dictionary.
+def load_model_costs(file_path: str) -> tuple[Dict, Dict]:
+    """Loads model costs and friendly names from a CSV file and returns structured dictionaries.
 
     Args:
         file_path: The path to the cost file.
 
     Returns:
-        A dictionary containing the model costs.
+        A tuple containing (model_costs_dict, friendly_names_dict).
     """
     try:
         with open(file_path, "r", encoding="utf-8") as f:
@@ -45,24 +45,45 @@ def load_model_costs(file_path: str) -> Dict:
                 line for line in f if not line.strip().startswith("#") and line.strip()
             ]
 
-            # Find the start of the dictionary-like definition
+            # Find the start of the dictionary-like definitions
             dict_str = "".join(lines)
-            match = re.search(r"MODEL_COSTS\s*=\s*({.*})", dict_str, re.DOTALL)
-            if not match:
+
+            # Extract MODEL_COSTS
+            costs_match = re.search(r"MODEL_COSTS\s*=\s*({.*})", dict_str, re.DOTALL)
+            if not costs_match:
                 st.error(f"Could not find 'MODEL_COSTS' dictionary in {file_path}")
-                return {}
+                return {}, {}
 
-            # Safely evaluate the dictionary string
-            model_costs_raw = eval(match.group(1), {"float": float})
+            # Safely evaluate the dictionary strings
+            model_costs_raw = eval(costs_match.group(1), {"float": float})
 
-            return model_costs_raw
+            # Extract friendly names from the inline entries
+            friendly_names = {}
+            model_costs_clean = {}
+
+            for model_id, model_data in model_costs_raw.items():
+                # Extract friendly name if it exists
+                if isinstance(model_data, dict) and "friendly_name" in model_data:
+                    friendly_names[model_id] = model_data["friendly_name"]
+                    # Create a clean copy without the friendly_name for cost calculations
+                    model_costs_clean[model_id] = {
+                        key: value
+                        for key, value in model_data.items()
+                        if key != "friendly_name"
+                    }
+                else:
+                    # No friendly name, use model_id as fallback
+                    friendly_names[model_id] = model_id
+                    model_costs_clean[model_id] = model_data
+
+            return model_costs_clean, friendly_names
 
     except FileNotFoundError:
         st.warning(f"Cost file not found at {file_path}. Using empty cost config.")
-        return {}
+        return {}, {}
     except (SyntaxError, NameError, Exception) as e:
         st.error(f"Error parsing cost file {file_path}: {e}")
-        return {}
+        return {}, {}
 
 
 # --- Data Loading and Processing ---
@@ -388,8 +409,76 @@ def create_leaderboard(
     return leaderboard.sort_values("Correct", ascending=sort_ascending)
 
 
+def _calculate_smart_label_positions(
+    x_data, y_data, labels, min_distance_threshold=0.1
+):
+    """Calculate optimal label positions to avoid overlaps.
+
+    Args:
+        x_data: Array of x coordinates (normalized to 0-1 range for distance calc)
+        y_data: Array of y coordinates (normalized to 0-1 range for distance calc)
+        labels: Array of label strings
+        min_distance_threshold: Minimum distance threshold for considering overlap
+
+    Returns:
+        List of textposition strings for each point
+    """
+    import numpy as np
+
+    # Normalize coordinates to 0-1 range for distance calculations
+    x_norm = (
+        (x_data - x_data.min()) / (x_data.max() - x_data.min())
+        if x_data.max() != x_data.min()
+        else x_data * 0
+    )
+    y_norm = (
+        (y_data - y_data.min()) / (y_data.max() - y_data.min())
+        if y_data.max() != y_data.min()
+        else y_data * 0
+    )
+
+    positions = ["top center"] * len(x_data)
+    position_options = [
+        "top center",
+        "bottom center",
+        "middle left",
+        "middle right",
+        "top left",
+        "top right",
+        "bottom left",
+        "bottom right",
+    ]
+
+    # Calculate distances between all pairs of points
+    for i in range(len(x_data)):
+        for j in range(i + 1, len(x_data)):
+            distance = np.sqrt(
+                (x_norm[i] - x_norm[j]) ** 2 + (y_norm[i] - y_norm[j]) ** 2
+            )
+
+            if distance < min_distance_threshold:
+                # Points are close, try different positions
+                for pos_idx, position in enumerate(position_options):
+                    if positions[i] == "top center":
+                        positions[i] = position_options[pos_idx % len(position_options)]
+                        break
+
+                for pos_idx, position in enumerate(position_options):
+                    if positions[j] == "top center" or positions[j] == positions[i]:
+                        positions[j] = position_options[
+                            (pos_idx + 1) % len(position_options)
+                        ]
+                        break
+
+    return positions
+
+
 def create_pareto_frontier_plot(
-    df: pd.DataFrame, selected_groups: List[str], x_axis_mode: str, config: Dict
+    df: pd.DataFrame,
+    selected_groups: List[str],
+    x_axis_mode: str,
+    config: Dict,
+    friendly_names: Dict = None,
 ) -> go.Figure:
     """Visualizes the trade-off between model performance and cost/token usage.
 
@@ -436,28 +525,63 @@ def create_pareto_frontier_plot(
     else:
         hover_format = ":.0f"
 
-    fig.add_trace(
-        go.Scatter(
-            x=x_data,
-            y=model_metrics["y_axis"],
-            mode="markers+text",
-            marker=dict(
-                size=18,
-                color=model_metrics["color_axis"],
-                colorscale="RdYlGn_r",
-                showscale=True,
-                colorbar=dict(title=f"Avg {plot_config['color_axis']} (s)"),
-            ),
-            text=model_metrics["Model"],
-            textposition="top center",
-            hovertemplate=(
-                "<b>%{text}</b><br>"
-                f"{y_axis_label}: %{{y:.1f}}%<br>"
-                f"{hover_label}: %{{x{hover_format}}}<br>"
-                f"Avg {plot_config['color_axis']}: %{{marker.color:.1f}}s<extra></extra>"
-            ),
-        )
+    # Calculate smart label positions to avoid overlaps
+    label_positions = _calculate_smart_label_positions(
+        x_data.values, model_metrics["y_axis"].values, model_metrics["Model"].values
     )
+
+    # Group data by text position to create separate traces
+    from collections import defaultdict
+
+    position_groups = defaultdict(list)
+
+    for i, position in enumerate(label_positions):
+        position_groups[position].append(i)
+
+    # Create a trace for each text position group
+    first_trace = True
+    for position, indices in position_groups.items():
+        x_vals = [x_data.iloc[i] for i in indices]
+        y_vals = [model_metrics["y_axis"].iloc[i] for i in indices]
+        colors = [model_metrics["color_axis"].iloc[i] for i in indices]
+
+        # Get model names for this position group
+        original_names = [model_metrics["Model"].iloc[i] for i in indices]
+
+        # Use friendly names for display if available, otherwise use original names
+        if friendly_names:
+            display_texts = [friendly_names.get(name, name) for name in original_names]
+        else:
+            display_texts = original_names
+
+        fig.add_trace(
+            go.Scatter(
+                x=x_vals,
+                y=y_vals,
+                mode="markers+text",
+                marker=dict(
+                    size=18,
+                    color=colors,
+                    colorscale="RdYlGn_r",
+                    showscale=first_trace,  # Show colorbar only on first trace
+                    colorbar=dict(title=f"Avg {plot_config['color_axis']} (s)")
+                    if first_trace
+                    else None,
+                ),
+                text=display_texts,  # Use friendly names for display
+                textposition=position,
+                customdata=original_names,  # Store original names for hover
+                hovertemplate=(
+                    "<b>%{text}</b><br>"  # Friendly name as title
+                    "API Name: %{customdata}<br>"  # Original API name
+                    f"{y_axis_label}: %{{y:.1f}}%<br>"
+                    f"{hover_label}: %{{x{hover_format}}}<br>"
+                    f"Avg {plot_config['color_axis']}: %{{marker.color:.1f}}s<extra></extra>"
+                ),
+                showlegend=False,  # Don't show legend for individual position groups
+            )
+        )
+        first_trace = False
 
     fig.update_layout(
         title=plot_config["title"].format(x_axis_label=x_title),
@@ -714,7 +838,7 @@ def main() -> None:
     # Cost configuration in sidebar
     st.sidebar.subheader("💰 Cost Configuration")
     cost_file_path = os.path.join(os.path.dirname(__file__), "costs.csv")
-    model_costs = load_model_costs(cost_file_path)
+    model_costs, friendly_names = load_model_costs(cost_file_path)
     available_models = sorted(df_initial["Model"].unique())
 
     cost_config = {}
@@ -833,7 +957,7 @@ def main() -> None:
     )
     st.plotly_chart(
         create_pareto_frontier_plot(
-            df, selected_groups, x_axis_mode, eval_config.model_dump()
+            df, selected_groups, x_axis_mode, eval_config.model_dump(), friendly_names
         ),
         use_container_width=True,
     )
