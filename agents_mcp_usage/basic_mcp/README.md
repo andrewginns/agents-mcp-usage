@@ -21,6 +21,9 @@ Each script demonstrates how to connect to a single local MCP server and use it 
    
    # Run the Google ADK example
    uv run agents_mcp_usage/basic_mcp/basic_mcp_use/adk_mcp.py
+   
+   ## Launch ADK web UI for visual interaction
+   make adk_basic_ui
    ```
 
 4. Check the console output or Logfire for results.
@@ -155,17 +158,24 @@ The sequence diagram illustrates the temporal flow of interactions between the u
 
 **File:** `adk_mcp.py`
 
-This example demonstrates how to use MCP with Google's Agent Development Kit (ADK).
+This example demonstrates how to use MCP with Google's Agent Development Kit (ADK 1.3.0).
 
 ```bash
 uv run agents_mcp_usage/basic_mcp/basic_mcp_use/adk_mcp.py
 ```
 
 Key features:
-- Uses `MCPToolset` for connecting to the MCP server
+- Uses `MCPToolset` with `StdioConnectionParams` for MCP server connection
 - Configures a Gemini model using ADK's `LlmAgent`
 - Sets up session handling and runner for agent execution
+- Implements proper resource management for MCP connections
+- Supports ADK web UI through module exports
 - Includes Logfire instrumentation for tracing
+
+To run with the ADK web UI:
+```bash
+make adk_basic_ui
+```
 
 ### LangGraph
 
