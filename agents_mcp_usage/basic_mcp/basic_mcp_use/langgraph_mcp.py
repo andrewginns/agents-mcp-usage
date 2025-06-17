@@ -9,6 +9,8 @@ from langgraph.prebuilt import create_react_agent
 from mcp import ClientSession, StdioServerParameters
 from mcp.client.stdio import stdio_client
 
+from agents_mcp_usage.utils import get_mcp_server_path
+
 load_dotenv()
 
 # Configure logging if LOGFIRE_TOKEN is set
@@ -21,11 +23,11 @@ logfire.instrument_mcp()
 # Create server parameters for stdio connection
 server = StdioServerParameters(
     command="uv",
-    args=["run", "mcp_servers/example_server.py", "stdio"],
+    args=["run", str(get_mcp_server_path("example_server.py")), "stdio"],
 )
 
 model = ChatGoogleGenerativeAI(
-    model="gemini-2.5-pro-preview-03-25", google_api_key=os.getenv("GEMINI_API_KEY")
+    model="gemini-2.5-pro-preview-06-05", google_api_key=os.getenv("GEMINI_API_KEY")
 )
 
 

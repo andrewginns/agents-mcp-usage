@@ -38,7 +38,10 @@ Run an Agent framework script e.g.:
 - `uv run agents_mcp_usage/basic_mcp/basic_mcp_use/oai-agent_mcp.py`
   - Requires `OPENAI_API_KEY` by default
 
-Check console or Logfire for output
+- Launch the ADK web UI for visual interaction with the agents:
+  - `make adk_basic_ui`
+  
+Check console, Logfire, or the ADK web UI for output
 
 ## Project Overview
 
@@ -55,7 +58,7 @@ This project aims to teach:
 
 - **[agents_mcp_usage/basic_mcp/](agents_mcp_usage/basic_mcp/)** - Single MCP server integration examples
   - **basic_mcp_use/** - Contains basic examples of single MCP usage:
-    - `adk_mcp.py` - Example of using MCP with Google's Agent Development Kit (ADK)
+    - `adk_mcp.py` - Example of using MCP with Google's Agent Development Kit (ADK 1.3.0)
     - `langgraph_mcp.py` - Example of using MCP with LangGraph
     - `oai-agent_mcp.py` - Example of using MCP with OpenAI Agents
     - `pydantic_mcp.py` - Example of using MCP with Pydantic-AI
@@ -154,6 +157,9 @@ uv run agents_mcp_usage/basic_mcp/basic_mcp_use/oai-agent_mcp.py
 
 # Pydantic-AI example
 uv run agents_mcp_usage/basic_mcp/basic_mcp_use/pydantic_mcp.py
+
+# Launch ADK web UI for visual interaction
+make adk_basic_ui
 ```
 
 More details on basic MCP implementation can be found in the [basic_mcp README](agents_mcp_usage/basic_mcp/README.md).
@@ -218,7 +224,7 @@ uv run agents_mcp_usage/multi_mcp/multi_mcp_use/pydantic_mcp.py
 uv run agents_mcp_usage/multi_mcp/eval_multi_mcp/evals_pydantic_mcp.py
 
 # Run multi-model benchmarking
-uv run agents_mcp_usage/multi_mcp/eval_multi_mcp/run_multi_evals.py --models "gemini-2.5-pro,gemini-2.0-flash" --runs 5 --parallel
+uv run agents_mcp_usage/multi_mcp/eval_multi_mcp/run_multi_evals.py --models "gemini-2.5-pro-preview-06-05,gemini-2.0-flash" --runs 5 --parallel
 
 # Launch the evaluation dashboard
 uv run streamlit run agents_mcp_usage/multi_mcp/eval_multi_mcp/merbench_ui.py
@@ -258,7 +264,7 @@ uv run agents_mcp_usage/multi_mcp/eval_multi_mcp/evals_pydantic_mcp.py
 
 # Multi-model parallel benchmarking
 uv run agents_mcp_usage/multi_mcp/eval_multi_mcp/run_multi_evals.py \
-  --models "gemini-2.5-pro,gemini-2.0-flash,gemini-2.5-flash-preview-04-17" \
+  --models "gemini-2.5-pro-preview-06-05,gemini-2.0-flash,gemini-2.5-flash" \
   --runs 5 \
   --parallel \
   --output-dir ./results
@@ -287,6 +293,11 @@ A key advantage highlighted is flexibility; MCP allows developers to more easily
 2. Install required packages:
    ```bash
    make install
+   ```
+
+   To use the ADK web UI, run:
+   ```bash
+   make adk_basic_ui
    ```
 3. Set up your environment variables in a `.env` file:
    ```

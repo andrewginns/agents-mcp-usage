@@ -167,7 +167,7 @@ Results are exported to CSV files with the following columns:
 uv run agents_mcp_usage/multi_mcp/eval_multi_mcp/evals_pydantic_mcp.py
 
 # Customize model and judge
-AGENT_MODEL="gemini-2.5-pro" JUDGE_MODEL="gemini-2.0-flash" \
+AGENT_MODEL="gemini-2.5-pro-preview-06-05" JUDGE_MODEL="gemini-2.0-flash" \
 uv run agents_mcp_usage/multi_mcp/eval_multi_mcp/evals_pydantic_mcp.py
 ```
 
@@ -176,7 +176,7 @@ uv run agents_mcp_usage/multi_mcp/eval_multi_mcp/evals_pydantic_mcp.py
 ```bash
 # Run evaluation across multiple models
 uv run agents_mcp_usage/multi_mcp/eval_multi_mcp/run_multi_evals.py \
-  --models "gemini-2.5-pro,gemini-2.0-flash" \
+  --models "gemini-2.5-pro-preview-06-05,gemini-2.0-flash" \
   --runs 5 \
   --parallel \
   --timeout 600 \
@@ -184,10 +184,10 @@ uv run agents_mcp_usage/multi_mcp/eval_multi_mcp/run_multi_evals.py \
 
 # Sequential execution with custom judge
 uv run agents_mcp_usage/multi_mcp/eval_multi_mcp/run_multi_evals.py \
-  --models "gemini-2.5-pro,claude-3-opus" \
+  --models "gemini-2.5-pro-preview-06-05,claude-3-opus" \
   --runs 3 \
   --sequential \
-  --judge-model "gemini-2.5-pro" \
+  --judge-model "gemini-2.5-pro-preview-06-05" \
   --output-dir ./eval_results
 ```
 
@@ -195,7 +195,7 @@ uv run agents_mcp_usage/multi_mcp/eval_multi_mcp/run_multi_evals.py \
 
 - **`--models`** - Comma-separated list of models to evaluate
 - **`--runs`** - Number of evaluation runs per model (default: 3)
-- **`--judge-model`** - Model for LLM judging (default: gemini-2.5-pro-preview-03-25)
+- **`--judge-model`** - Model for LLM judging (default: gemini-2.5-pro-preview-06-05)
 - **`--parallel`** - Run evaluations in parallel (default: true)
 - **`--sequential`** - Force sequential execution
 - **`--timeout`** - Timeout in seconds per evaluation run (default: 600)
