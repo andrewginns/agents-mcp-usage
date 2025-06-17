@@ -35,7 +35,7 @@ mermaid_server = MCPServerStdio(
 )
 # Create Agent with MCP servers
 agent = Agent(
-    "gemini-2.5-pro-preview-05-06",
+    "gemini-2.5-pro-preview-06-05",
     # "openai:o4-mini",
     mcp_servers=[local_server, mermaid_server],
 )

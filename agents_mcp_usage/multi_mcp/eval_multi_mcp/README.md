@@ -195,7 +195,7 @@ uv run agents_mcp_usage/multi_mcp/eval_multi_mcp/run_multi_evals.py \
 
 - **`--models`** - Comma-separated list of models to evaluate
 - **`--runs`** - Number of evaluation runs per model (default: 3)
-- **`--judge-model`** - Model for LLM judging (default: gemini-2.5-pro-preview-03-25)
+- **`--judge-model`** - Model for LLM judging (default: gemini-2.5-pro-preview-06-05)
 - **`--parallel`** - Run evaluations in parallel (default: true)
 - **`--sequential`** - Force sequential execution
 - **`--timeout`** - Timeout in seconds per evaluation run (default: 600)

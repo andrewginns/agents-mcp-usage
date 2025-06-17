@@ -22,7 +22,7 @@ server = MCPServerStdio(
         "stdio",
     ],
 )
-agent = Agent("gemini-2.5-pro-preview-03-25", mcp_servers=[server])
+agent = Agent("gemini-2.5-pro-preview-06-05", mcp_servers=[server])
 Agent.instrument_all()
 
 
