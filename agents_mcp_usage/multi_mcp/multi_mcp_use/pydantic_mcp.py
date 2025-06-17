@@ -8,6 +8,7 @@ from pydantic_ai.mcp import MCPServerStdio
 from pydantic_ai.usage import UsageLimits
 
 from agents_mcp_usage.multi_mcp.mermaid_diagrams import invalid_mermaid_diagram_easy
+from agents_mcp_usage.utils import get_mcp_server_path
 
 load_dotenv()
 
@@ -21,7 +22,7 @@ local_server = MCPServerStdio(
     command="uv",
     args=[
         "run",
-        "mcp_servers/example_server.py",
+        str(get_mcp_server_path("example_server.py")),
         "stdio",
     ],
 )
@@ -29,7 +30,7 @@ mermaid_server = MCPServerStdio(
     command="uv",
     args=[
         "run",
-        "mcp_servers/mermaid_validator.py",
+        str(get_mcp_server_path("mermaid_validator.py")),
     ],
 )
 # Create Agent with MCP servers

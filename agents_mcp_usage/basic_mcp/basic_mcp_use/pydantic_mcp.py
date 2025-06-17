@@ -5,6 +5,8 @@ from dotenv import load_dotenv
 from pydantic_ai import Agent
 from pydantic_ai.mcp import MCPServerStdio
 
+from agents_mcp_usage.utils import get_mcp_server_path
+
 load_dotenv()
 
 # Configure logging to logfire if LOGFIRE_TOKEN is set in environment
@@ -16,7 +18,7 @@ server = MCPServerStdio(
     command="uv",
     args=[
         "run",
-        "mcp_servers/example_server.py",
+        str(get_mcp_server_path("example_server.py")),
         "stdio",
     ],
 )

@@ -37,7 +37,9 @@ from agents_mcp_usage.multi_mcp.mermaid_diagrams import (
     invalid_mermaid_diagram_hard,
     valid_mermaid_diagram,
 )
-from mcp_servers.mermaid_validator import validate_mermaid_diagram
+from agents_mcp_usage.utils import get_mcp_server_path
+import sys
+import importlib.util
 
 load_dotenv()
 
@@ -56,6 +58,14 @@ RETRYABLE_HTTP_STATUS_CODES = {429, 500, 502, 503, 504}
 MAX_RETRY_ATTEMPTS = 3
 BASE_RETRY_DELAY = 1.0  # seconds
 MAX_RETRY_DELAY = 30.0  # seconds
+
+# Dynamically import validate_mermaid_diagram from the mermaid_validator.py file
+mermaid_validator_path = str(get_mcp_server_path("mermaid_validator.py"))
+spec = importlib.util.spec_from_file_location("mermaid_validator", mermaid_validator_path)
+mermaid_validator = importlib.util.module_from_spec(spec)
+sys.modules["mermaid_validator"] = mermaid_validator
+spec.loader.exec_module(mermaid_validator)
+validate_mermaid_diagram = mermaid_validator.validate_mermaid_diagram
 
 # ============================================================================
 # Retry Utilities
@@ -177,7 +187,7 @@ def get_mcp_servers() -> List[MCPServerStdio]:
         command="uv",
         args=[
             "run",
-            "mcp_servers/example_server.py",
+            str(get_mcp_server_path("example_server.py")),
             "stdio",
         ],
     )
@@ -185,7 +195,7 @@ def get_mcp_servers() -> List[MCPServerStdio]:
         command="uv",
         args=[
             "run",
-            "mcp_servers/mermaid_validator.py",
+            str(get_mcp_server_path("mermaid_validator.py")),
         ],
     )
     return [local_server, mermaid_server]

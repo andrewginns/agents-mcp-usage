@@ -31,6 +31,7 @@ from google.adk.tools.mcp_tool.mcp_toolset import (
 from google.genai import types
 
 from agents_mcp_usage.multi_mcp.mermaid_diagrams import invalid_mermaid_diagram_easy
+from agents_mcp_usage.utils import get_mcp_server_path
 
 load_dotenv()
 
@@ -62,7 +63,7 @@ async def get_tools_async() -> tuple[list, list]:
         command="uv",
         args=[
             "run",
-            "mcp_servers/example_server.py",
+            str(get_mcp_server_path("example_server.py")),
             "stdio",
         ],
     )
@@ -71,7 +72,7 @@ async def get_tools_async() -> tuple[list, list]:
         command="uv",
         args=[
             "run",
-            "mcp_servers/mermaid_validator.py",
+            str(get_mcp_server_path("mermaid_validator.py")),
         ],
     )
 

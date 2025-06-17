@@ -5,6 +5,8 @@ from agents import Agent, Runner
 from agents.mcp import MCPServerStdio
 from dotenv import load_dotenv
 
+from agents_mcp_usage.utils import get_mcp_server_path
+
 load_dotenv()
 
 # Configure Logfire
@@ -26,7 +28,7 @@ async def main(query: str = "Greet Andrew and give him the current time") -> Non
     async with MCPServerStdio(
         params={
             "command": "uv",
-            "args": ["run", "mcp_servers/example_server.py", "stdio"],
+            "args": ["run", str(get_mcp_server_path("example_server.py")), "stdio"],
         }
     ) as server:
         # Initialise the agent with the server
