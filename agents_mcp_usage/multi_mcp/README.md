@@ -21,11 +21,14 @@ Agents utilising multiple MCP servers can be dramatically more complex than an A
    # Run the Google ADK multi-MCP example
    uv run agents_mcp_usage/multi_mcp/multi_mcp_use/adk_mcp.py
    
+   ## Launch ADK web UI for visual interaction
+   make adk_multi_ui
+   
    # Run the multi-MCP evaluation
    uv run agents_mcp_usage/multi_mcp/eval_multi_mcp/evals_pydantic_mcp.py
    
    # Run multi-model benchmarking
-   uv run agents_mcp_usage/multi_mcp/eval_multi_mcp/run_multi_evals.py --models "gemini-2.5-pro,gemini-2.0-flash" --runs 5 --parallel
+   uv run agents_mcp_usage/multi_mcp/eval_multi_mcp/run_multi_evals.py --models "gemini-2.5-pro-preview-06-05,gemini-2.0-flash" --runs 5 --parallel
    
    # Launch the evaluation dashboard
    uv run streamlit run agents_mcp_usage/multi_mcp/eval_multi_mcp/merbench_ui.py
@@ -250,7 +253,7 @@ The `run_multi_evals.py` script enables systematic comparison across multiple LL
 ```bash
 # Parallel benchmarking across multiple models
 uv run agents_mcp_usage/multi_mcp/eval_multi_mcp/run_multi_evals.py \
-  --models "gemini-2.5-pro,gemini-2.0-flash,gemini-2.5-flash-preview-04-17" \
+  --models "gemini-2.5-pro-preview-06-05,gemini-2.0-flash,gemini-2.5-flash" \
   --runs 5 \
   --parallel \
   --timeout 600 \
@@ -258,10 +261,10 @@ uv run agents_mcp_usage/multi_mcp/eval_multi_mcp/run_multi_evals.py \
 
 # Sequential execution with custom judge model
 uv run agents_mcp_usage/multi_mcp/eval_multi_mcp/run_multi_evals.py \
-  --models "gemini-2.5-pro,claude-3-opus" \
+  --models "gemini-2.5-pro-preview-06-05,claude-3-opus" \
   --runs 3 \
   --sequential \
-  --judge-model "gemini-2.5-pro" \
+  --judge-model "gemini-2.5-pro-preview-06-05" \
   --output-dir ./comparative_analysis
 ```
 
@@ -295,7 +298,7 @@ Key features:
 
 **File:** `multi_mcp_use/adk_mcp.py`
 
-This example demonstrates how to use multiple MCP servers with Google's Agent Development Kit (ADK).
+This example demonstrates how to use multiple MCP servers with Google's Agent Development Kit (ADK 1.3.0).
 
 ```bash
 uv run agents_mcp_usage/multi_mcp/multi_mcp_use/adk_mcp.py
@@ -304,9 +307,16 @@ uv run agents_mcp_usage/multi_mcp/multi_mcp_use/adk_mcp.py
 Key features:
 - Uses Google's ADK framework with Gemini model
 - Connects to both Python MCP server and Python Mermaid validator
-- Demonstrates proper connection management with contextlib.AsyncExitStack
+- Uses new ADK 1.3.0 patterns for toolset management
+- Implements proper resource tracking for MCP connections
 - Shows how to handle asynchronous MCP tool integration
+- Supports ADK web UI through module exports and callback-based tool attachment
 - Uses a simple test case that utilizes both MCP servers in a single query
+
+To run with the ADK web UI:
+```bash
+make adk_multi_ui
+```
 
 ### Multi-MCP Evaluation
 

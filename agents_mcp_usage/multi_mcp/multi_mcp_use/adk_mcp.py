@@ -8,14 +8,19 @@ This module demonstrates sophisticated ADK (Agent Development Kit) patterns incl
 - RunConfig for request limiting and control
 - Enhanced event tracking and metrics collection
 - Graceful resource cleanup and Logfire instrumentation
+- Web UI integration via ADK's callback system
 
 Compatible with ADK v1.3.0+ and showcases production-ready patterns
 for complex agent architectures involving multiple tool sources.
+
+This module provides an ADK agent that can be used both in the ADK web UI
+and directly from the command line. The agent uses multiple MCP servers
+to access different external functionalities.
 """
 
 import asyncio
 import os
-import time
+from typing import List, Tuple, Any
 
 import logfire
 from dotenv import load_dotenv
@@ -42,21 +47,25 @@ os.environ["GOOGLE_API_KEY"] = os.getenv("GEMINI_API_KEY", "")
 logfire.configure(send_to_logfire="if-token-present", service_name="adk-multi-mcp")
 logfire.instrument_mcp()
 
+# Global variable to store toolset instances for cleanup
+_ACTIVE_TOOLSETS = []
 
-async def get_tools_async() -> tuple[list, list]:
+# Flag to track if tools have been attached
+TOOLS_ATTACHED = False
+
+
+async def get_tools_async() -> Tuple[List[Any], List[MCPToolset]]:
     """Initializes connections to MCP servers and returns their tools.
 
     This function connects to the local example server and the mermaid
-    validator server, and returns the combined tools and a combined exit
-    stack for cleanup.
+    validator server, and returns the combined tools and a list of toolsets
+    for cleanup.
 
     Returns:
         A tuple containing the list of all tools and the list of toolsets for cleanup.
     """
+    global _ACTIVE_TOOLSETS
     print("Connecting to MCP servers...")
-
-    # Keep track of toolsets for cleanup (ADK v1.3.0+ API)
-    toolsets = []
 
     # Set up MCP server connections
     local_server = StdioServerParameters(
@@ -76,25 +85,111 @@ async def get_tools_async() -> tuple[list, list]:
         ],
     )
 
-    # Connect to local python MCP server (ADK v1.3.0+ API)
-    local_connection = StdioConnectionParams(server_params=local_server)
-    local_toolset = MCPToolset(connection_params=local_connection)
-    local_tools = await local_toolset.get_tools()
-    toolsets.append(local_toolset)
-    print(f"Connected to local python MCP server. Found {len(local_tools)} tools.")
+    local_toolset = None
+    mermaid_toolset = None
+    toolsets = []
 
-    # Connect to npx mermaid MCP server (ADK v1.3.0+ API)
-    mermaid_connection = StdioConnectionParams(server_params=mermaid_server)
-    mermaid_toolset = MCPToolset(connection_params=mermaid_connection)
-    mermaid_tools = await mermaid_toolset.get_tools()
-    toolsets.append(mermaid_toolset)
-    print(f"Connected to npx mermaid MCP server. Found {len(mermaid_tools)} tools.")
+    try:
+        # Connect to local python MCP server
+        local_connection = StdioConnectionParams(server_params=local_server)
+        local_toolset = MCPToolset(connection_params=local_connection)
+        local_tools = await local_toolset.get_tools()
+        toolsets.append(local_toolset)
+        _ACTIVE_TOOLSETS.append(local_toolset)
+        print(f"Connected to local python MCP server. Found {len(local_tools)} tools.")
 
-    # Combine tools from both servers
-    all_tools = local_tools + mermaid_tools
-    print(f"Total tools available: {len(all_tools)}")
+        # Connect to mermaid MCP server
+        mermaid_connection = StdioConnectionParams(server_params=mermaid_server)
+        mermaid_toolset = MCPToolset(connection_params=mermaid_connection)
+        mermaid_tools = await mermaid_toolset.get_tools()
+        toolsets.append(mermaid_toolset)
+        _ACTIVE_TOOLSETS.append(mermaid_toolset)
+        print(f"Connected to mermaid MCP server. Found {len(mermaid_tools)} tools.")
 
-    return all_tools, toolsets
+        # Combine tools from both servers
+        all_tools = local_tools + mermaid_tools
+        print(f"Total tools available: {len(all_tools)}")
+
+        return all_tools, toolsets
+
+    except Exception as e:
+        # Clean up in case of initialisation error
+        if local_toolset in toolsets:
+            try:
+                await local_toolset.close()
+                toolsets.remove(local_toolset)
+                if local_toolset in _ACTIVE_TOOLSETS:
+                    _ACTIVE_TOOLSETS.remove(local_toolset)
+            except Exception:
+                pass
+
+        if mermaid_toolset in toolsets:
+            try:
+                await mermaid_toolset.close()
+                toolsets.remove(mermaid_toolset)
+                if mermaid_toolset in _ACTIVE_TOOLSETS:
+                    _ACTIVE_TOOLSETS.remove(mermaid_toolset)
+            except Exception:
+                pass
+
+        raise e
+
+
+async def cleanup_toolsets():
+    """Clean up any active MCP toolset connections."""
+    global _ACTIVE_TOOLSETS
+
+    for toolset in _ACTIVE_TOOLSETS:
+        try:
+            await toolset.close()
+            print("MCP toolset connection closed.")
+        except asyncio.CancelledError:
+            print("MCP cleanup cancelled - this is normal")
+        except Exception as e:
+            print(f"Warning: Error during toolset cleanup: {e}")
+
+    _ACTIVE_TOOLSETS = []
+
+
+# Define a before_agent_callback to attach tools
+async def attach_tools_callback(callback_context):
+    """Callback to attach tools to the agent before it runs.
+
+    Args:
+        callback_context: The callback context from ADK.
+
+    Returns:
+        None: The callback doesn't modify the content.
+    """
+    await ensure_tools_attached()
+    return None
+
+
+# This is the agent that will be imported by the ADK web UI
+root_agent = LlmAgent(
+    model="gemini-2.0-flash",
+    name="multi_mcp_adk_assistant",
+    instruction="You are an assistant that uses multiple MCP servers to help users. You have access to both a Python MCP server with time tools and a Mermaid diagram validator.",
+    before_agent_callback=attach_tools_callback,  # This ensures tools are attached
+)
+
+
+# Function to dynamically attach tools to the agent
+async def ensure_tools_attached():
+    """Ensures that tools are attached to the agent before it's used."""
+    global TOOLS_ATTACHED
+
+    if not TOOLS_ATTACHED:
+        try:
+            tools, _ = await get_tools_async()
+            print(f"✓ Connected to MCP servers. Found {len(tools)} tools.")
+            # Update the agent's tools
+            root_agent.tools = tools
+            TOOLS_ATTACHED = True
+        except Exception as e:
+            print(f"Error attaching MCP tools: {e}")
+            # Set empty tools to avoid errors
+            root_agent.tools = []
 
 
 async def main(query: str = "Hi!", request_limit: int = 5) -> None:
@@ -108,17 +203,9 @@ async def main(query: str = "Hi!", request_limit: int = 5) -> None:
         query: The query to run the agent with.
         request_limit: The maximum number of LLM calls allowed.
     """
-    toolsets = []
     try:
-        # Get tools from MCP servers
-        tools, toolsets = await get_tools_async()
-
-        # Create agent
-        agent = LlmAgent(
-            model="gemini-2.0-flash",
-            name="multi_mcp_adk",
-            tools=tools,
-        )
+        # Ensure tools are attached to the agent
+        await ensure_tools_attached()
 
         # Create async session service
         session_service = InMemorySessionService()
@@ -130,10 +217,10 @@ async def main(query: str = "Hi!", request_limit: int = 5) -> None:
         # Create a RunConfig with a limit for LLM calls (500 is the default)
         run_config = RunConfig(max_llm_calls=request_limit)
 
-        # Create runner
+        # Create runner using the globally defined agent
         runner = Runner(
             app_name="multi_mcp_adk",
-            agent=agent,
+            agent=root_agent,
             session_service=session_service,
         )
 
@@ -158,14 +245,7 @@ async def main(query: str = "Hi!", request_limit: int = 5) -> None:
     finally:
         # Clean up MCP toolsets to prevent asyncio shutdown errors
         print("Cleaning up MCP connections...")
-        for i, toolset in enumerate(toolsets):
-            try:
-                await toolset.close()
-                print(f"Toolset {i + 1} closed successfully.")
-            except asyncio.CancelledError:
-                print(f"Toolset {i + 1} cleanup cancelled - this is normal")
-            except Exception as e:
-                print(f"Warning during cleanup of toolset {i + 1}: {e}")
+        await cleanup_toolsets()
         print("MCP cleanup completed.")
 
 
