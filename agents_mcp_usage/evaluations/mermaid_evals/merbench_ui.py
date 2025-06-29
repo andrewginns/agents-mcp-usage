@@ -8,10 +8,10 @@ import json
 import re
 from pydantic import ValidationError
 
-from agents_mcp_usage.multi_mcp.eval_multi_mcp.dashboard_config import (
+from agents_mcp_usage.evaluations.mermaid_evals.dashboard_config import (
     DEFAULT_CONFIG,
 )
-from agents_mcp_usage.multi_mcp.eval_multi_mcp.schemas import DashboardConfig
+from agents_mcp_usage.evaluations.mermaid_evals.schemas import DashboardConfig
 
 # Load and validate the configuration
 try:
@@ -841,7 +841,7 @@ def main() -> None:
 
     # Cost configuration in sidebar
     st.sidebar.subheader("💰 Cost Configuration")
-    cost_file_path = os.path.join(os.path.dirname(__file__), "costs.csv")
+    cost_file_path = os.path.join(os.path.dirname(__file__), "costs.json")
     model_costs, friendly_names = load_model_costs(cost_file_path)
     available_models = sorted(df_initial["Model"].unique())
 

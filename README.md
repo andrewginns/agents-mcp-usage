@@ -9,7 +9,8 @@ This repository demonstrates LLM Agents using tools from Model Context Protocol 
 ## Repository Structure
 
 - [Agent with a single MCP server](agents_mcp_usage/basic_mcp/README.md) - Learning examples and basic patterns
-- [Agent with multiple MCP servers](agents_mcp_usage/multi_mcp/README.md) - Advanced usage with comprehensive evaluation suite
+- [Agent with multiple MCP servers](agents_mcp_usage/multi_mcp/README.md) - Advanced usage with MCP server coordination
+- [Evaluation suite](agents_mcp_usage/evaluations/mermaid_evals/README.md) - Comprehensive benchmarking tools
   - **Evaluation Dashboard**: Interactive Streamlit UI for model comparison
   - **Multi-Model Benchmarking**: Parallel/sequential evaluation across multiple LLMs
   - **Rich Metrics**: Usage analysis, cost comparison, and performance leaderboards
@@ -67,8 +68,12 @@ This project aims to teach:
 - **[agents_mcp_usage/multi_mcp/](agents_mcp_usage/multi_mcp/)** - Advanced multi-MCP server integration examples
   - **multi_mcp_use/** - Contains examples of using multiple MCP servers simultaneously:
     - `pydantic_mcp.py` - Example of using multiple MCP servers with Pydantic-AI Agent
-  - **eval_multi_mcp/** - Contains evaluation examples for multi-MCP usage:
-    - `evals_pydantic_mcp.py` - Example of evaluating the use of multiple MCP servers with Pydantic-AI
+
+- **[agents_mcp_usage/evaluations/](agents_mcp_usage/evaluations/)** - Evaluation modules for benchmarking
+  - **mermaid_evals/** - Comprehensive evaluation suite for mermaid diagram fixing tasks
+    - `evals_pydantic_mcp.py` - Core evaluation module for single-model testing
+    - `run_multi_evals.py` - Multi-model benchmarking with parallel execution
+    - `merbench_ui.py` - Interactive dashboard for result visualization
 
 - **Demo Python MCP Servers**
   - `mcp_servers/example_server.py` - Simple MCP server that runs locally, implemented in Python
@@ -221,13 +226,13 @@ graph LR
 uv run agents_mcp_usage/multi_mcp/multi_mcp_use/pydantic_mcp.py
 
 # Run the multi-MCP evaluation
-uv run agents_mcp_usage/multi_mcp/eval_multi_mcp/evals_pydantic_mcp.py
+uv run agents_mcp_usage/evaluations/mermaid_evals/evals_pydantic_mcp.py
 
 # Run multi-model benchmarking
-uv run agents_mcp_usage/multi_mcp/eval_multi_mcp/run_multi_evals.py --models "gemini-2.5-pro-preview-06-05,gemini-2.0-flash" --runs 5 --parallel
+uv run agents_mcp_usage/evaluations/mermaid_evals/run_multi_evals.py --models "gemini-2.5-pro-preview-06-05,gemini-2.0-flash" --runs 5 --parallel
 
 # Launch the evaluation dashboard
-uv run streamlit run agents_mcp_usage/multi_mcp/eval_multi_mcp/merbench_ui.py
+uv run streamlit run agents_mcp_usage/evaluations/mermaid_evals/merbench_ui.py
 ```
 
 More details on multi-MCP implementation can be found in the [multi_mcp README](agents_mcp_usage/multi_mcp/README.md).
@@ -260,17 +265,17 @@ The included Streamlit dashboard (`merbench_ui.py`) provides:
 
 ```bash
 # Single model evaluation
-uv run agents_mcp_usage/multi_mcp/eval_multi_mcp/evals_pydantic_mcp.py
+uv run agents_mcp_usage/evaluations/mermaid_evals/evals_pydantic_mcp.py
 
 # Multi-model parallel benchmarking
-uv run agents_mcp_usage/multi_mcp/eval_multi_mcp/run_multi_evals.py \
+uv run agents_mcp_usage/evaluations/mermaid_evals/run_multi_evals.py \
   --models "gemini-2.5-pro-preview-06-05,gemini-2.0-flash,gemini-2.5-flash" \
   --runs 5 \
   --parallel \
   --output-dir ./results
 
 # Launch interactive dashboard
-uv run streamlit run agents_mcp_usage/multi_mcp/eval_multi_mcp/merbench_ui.py
+uv run streamlit run agents_mcp_usage/evaluations/mermaid_evals/merbench_ui.py
 ```
 
 The evaluation system enables robust, repeatable benchmarking across LLM models and agent frameworks, supporting both research and production model selection decisions.

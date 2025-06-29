@@ -33,7 +33,7 @@ from rich.progress import (
 from rich.table import Table
 
 # Import shared functionality from the improved evals module
-from agents_mcp_usage.multi_mcp.eval_multi_mcp.evals_pydantic_mcp import (
+from agents_mcp_usage.evaluations.mermaid_evals.evals_pydantic_mcp import (
     MermaidInput,
     MermaidOutput,
     fix_mermaid_diagram,
@@ -44,18 +44,20 @@ from agents_mcp_usage.multi_mcp.eval_multi_mcp.evals_pydantic_mcp import (
 load_dotenv()
 
 DEFAULT_MODELS = [
-    # "gemini-2.5-pro-preview-06-05",
-    # "gemini-2.5-pro-preview-05-06",
-    # "gemini-2.5-pro-preview-03-25",
-    "gemini-2.0-flash",
-    "gemini-2.5-flash-preview-04-17",
+    "gemini-2.5-pro-preview-06-05",
+    "gemini-2.5-pro-preview-05-06",
+    "gemini-2.5-pro-preview-03-25",
+    "gemini-2.5-pro",
+    # "gemini-2.5-flash",
+    # "gemini-2.5-flash-preview-04-17",
     # "openai:o4-mini",
     # "openai:gpt-4.1",
     # "openai:gpt-4.1-mini",
     # "openai:gpt-4.1-nano",
     # "bedrock:us.anthropic.claude-sonnet-4-20250514-v1:0",
     # "bedrock:us.anthropic.claude-opus-4-20250514-v1:0",
-    # "bedrock:us.anthropic.claude-3-7-sonnet-20250219-v1:0",
+    # "gemini-2.5-flash-lite-preview-06-17"
+    # "bedrock:us.anthropic.claude-3-7-sonnet-20240219-v1:0",
     # "bedrock:us.anthropic.claude-3-5-sonnet-20240620-v1:0",
     # "bedrock:us.anthropic.claude-3-5-haiku-20241022-v1:0",
 ]
@@ -506,7 +508,7 @@ async def main() -> None:
     parser.add_argument(
         "--runs",
         type=int,
-        default=3,
+        default=5,
         help="Number of evaluation runs per model",
     )
     parser.add_argument(
