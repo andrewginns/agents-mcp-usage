@@ -94,7 +94,7 @@ def _convert_inf_strings(data):
 
 
 def find_all_combined_results_csvs(directory_path: str) -> list[str]:
-    """Finds all '*_combined_results.csv' files, sorted by modification time.
+    """Finds all '*_results.csv' files, sorted by modification time.
 
     Args:
         directory_path: The path to the directory to search.
@@ -105,7 +105,7 @@ def find_all_combined_results_csvs(directory_path: str) -> list[str]:
     if not os.path.isdir(directory_path):
         return []
     try:
-        search_pattern = os.path.join(directory_path, "*_combined_results.csv")
+        search_pattern = os.path.join(directory_path, "*_results.csv")
         files = glob.glob(search_pattern)
         return sorted(files, key=os.path.getmtime, reverse=True)
     except Exception as e:
@@ -782,6 +782,33 @@ def create_cost_breakdown_plot(
     return fig
 
 
+def extract_provider_from_model_name(model_name: str) -> str:
+    """Extract provider from model name based on common patterns.
+    
+    Args:
+        model_name: The model name string
+        
+    Returns:
+        The provider name
+    """
+    if model_name.startswith("gemini-"):
+        return "Google"
+    elif model_name.startswith("openai:"):
+        return "OpenAI"
+    elif model_name.startswith("bedrock:"):
+        if "claude" in model_name:
+            return "Anthropic (Bedrock)"
+        return "Amazon Bedrock"
+    elif model_name.startswith("claude-"):
+        return "Anthropic"
+    elif "claude" in model_name.lower():
+        return "Anthropic"
+    elif "gpt" in model_name.lower():
+        return "OpenAI"
+    else:
+        return "Other"
+
+
 def main() -> None:
     """The main Streamlit application entrypoint."""
     eval_config = EVAL_CONFIG  # Use the validated config
@@ -824,6 +851,9 @@ def main() -> None:
         st.error("No data loaded. Please check the selected files.")
         return
 
+    # Add provider column to the dataframe
+    df_initial["provider"] = df_initial["Model"].apply(extract_provider_from_model_name)
+
     # Grouping filter
     grouping_config = eval_config.grouping
     st.sidebar.subheader(f"🎯 {grouping_config.label} Filter")
@@ -838,6 +868,39 @@ def main() -> None:
         options=available_groups,
         default=available_groups,
     )
+
+    # Model filtering section
+    st.sidebar.subheader("🤖 Model Filters")
+    
+    # Provider filter
+    available_providers = sorted(df_initial["provider"].unique())
+    selected_providers = st.sidebar.multiselect(
+        "Filter by provider:",
+        options=available_providers,
+        default=available_providers,
+        help="Select one or more providers to filter models"
+    )
+    
+    # Filter models based on selected providers first
+    df_provider_filtered = df_initial[df_initial["provider"].isin(selected_providers)]
+    available_models = sorted(df_provider_filtered["Model"].unique())
+    
+    # Advanced filters in expander
+    with st.sidebar.expander("⚙️ Advanced Filters", expanded=False):
+        # Individual model selection
+        selected_models = st.multiselect(
+            "Select specific models:",
+            options=available_models,
+            default=available_models,
+            help="Select individual models to include in the analysis",
+            key="model_selection"
+        )
+    
+    # Get selected models from session state or use all available models
+    if "model_selection" in st.session_state:
+        selected_models = st.session_state.model_selection
+    else:
+        selected_models = available_models
 
     # Cost configuration in sidebar
     st.sidebar.subheader("💰 Cost Configuration")
@@ -902,7 +965,14 @@ def main() -> None:
     final_cost_config = cost_config.copy()
     final_cost_config.update(user_cost_override)
 
-    df = process_data(df_initial, final_cost_config, eval_config)
+    # Apply model filter before processing data
+    df_model_filtered = df_initial[df_initial["Model"].isin(selected_models)]
+    
+    if df_model_filtered.empty:
+        st.warning("No data available for the selected models. Please adjust your filters.")
+        return
+
+    df = process_data(df_model_filtered, final_cost_config, eval_config)
 
     # --- Main Panel ---
     st.header("📊 Overview")
@@ -914,9 +984,19 @@ def main() -> None:
     cols[2].metric("Test Cases", df[grouping_config.column].nunique())
     cols[3].metric("Files Loaded", len(selected_files))
 
-    st.info(
-        f"**Showing averaged results for {grouping_config.label.lower()}:** {', '.join(selected_groups) if selected_groups else 'None'}"
-    )
+    # Filter status information
+    filter_info = []
+    if selected_groups:
+        filter_info.append(f"**{grouping_config.label}:** {', '.join(selected_groups)}")
+    if len(selected_providers) < len(available_providers):
+        filter_info.append(f"**Providers:** {', '.join(selected_providers)}")
+    if len(selected_models) < len(available_models):
+        filter_info.append(f"**Models:** {len(selected_models)} of {len(available_models)} selected")
+    
+    if filter_info:
+        st.info("🔍 Active filters: " + " | ".join(filter_info))
+    else:
+        st.info("📊 Showing all available data")
 
     # --- Leaderboard & Pareto ---
     st.header("🏅 Leaderboard")
@@ -964,6 +1044,7 @@ def main() -> None:
             df, selected_groups, x_axis_mode, eval_config.model_dump(), friendly_names
         ),
         use_container_width=True,
+        key="pareto_frontier_plot"
     )
 
     # --- Deep Dive Analysis ---
@@ -997,6 +1078,7 @@ def main() -> None:
                             df, selected_groups, eval_config.model_dump()
                         ),
                         use_container_width=True,
+                        key="success_rates_plot"
                     )
             if "Failure Analysis" in tab_map:
                 with tab_map["Failure Analysis"]:
@@ -1005,6 +1087,7 @@ def main() -> None:
                             df, selected_groups, eval_config.model_dump()
                         ),
                         use_container_width=True,
+                        key="failure_analysis_plot"
                     )
             if "Resource Usage" in tab_map:
                 with tab_map["Resource Usage"]:
@@ -1014,6 +1097,7 @@ def main() -> None:
                                 df, selected_groups, eval_config.model_dump()
                             ),
                             use_container_width=True,
+                            key="token_breakdown_plot"
                         )
                     if "cost_breakdown" in active_plots:
                         st.plotly_chart(
@@ -1021,6 +1105,7 @@ def main() -> None:
                                 df, selected_groups, eval_config.model_dump()
                             ),
                             use_container_width=True,
+                            key="cost_breakdown_plot"
                         )
             if "Raw Data" in tab_map:
                 with tab_map["Raw Data"]:
