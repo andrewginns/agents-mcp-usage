@@ -31,7 +31,7 @@ from pydantic_evals import Case, Dataset
 from pydantic_evals.evaluators import Evaluator, EvaluatorContext, LLMJudge
 from pydantic_evals.reporting import EvaluationReport
 
-from agents_mcp_usage.multi_mcp.mermaid_diagrams import (
+from agents_mcp_usage.evaluations.mermaid_evals.mermaid_diagrams import (
     invalid_mermaid_diagram_easy,
     invalid_mermaid_diagram_medium,
     invalid_mermaid_diagram_hard,
@@ -646,7 +646,7 @@ def get_timestamp_prefix() -> str:
 
 
 def write_mermaid_results_to_csv(
-    report: EvaluationReport, model: str, output_dir: str = "./mermaid_results"
+    report: EvaluationReport, model: str, output_dir: str = "./mermaid_eval_results"
 ) -> str:
     """Writes mermaid evaluation results with metrics to a CSV file.
 
@@ -750,7 +750,7 @@ async def run_evaluations(
     model: str = DEFAULT_MODEL,
     judge_model: str = DEFAULT_MODEL,
     export_csv: bool = True,
-    output_dir: str = "./mermaid_results",
+    output_dir: str = "./mermaid_eval_results",
 ) -> EvaluationReport:
     """Runs the evaluations on the mermaid diagram fixing task.
 

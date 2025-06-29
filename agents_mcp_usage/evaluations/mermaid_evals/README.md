@@ -1,4 +1,4 @@
-# Multi-MCP Mermaid Diagram Evaluation System
+# Mermaid Diagram Evaluation System
 
 This directory contains evaluation modules for testing LLM agents on mermaid diagram fixing tasks using multiple MCP (Model Context Protocol) servers. The system evaluates how well language models can fix invalid mermaid diagrams while utilizing multiple external tools.
 
@@ -21,7 +21,7 @@ The system tests LLM agents on their ability to:
 
 The evaluation includes three test cases of increasing difficulty:
 1. **Easy** - Simple syntax errors in mermaid diagrams
-2. **Medium** - More complex structural issues
+2. **Medium** - More complex structural issues 
 3. **Hard** - Advanced mermaid syntax problems
 
 ## Output Schema
@@ -164,18 +164,18 @@ Results are exported to CSV files with the following columns:
 
 ```bash
 # Run evaluation with default model
-uv run agents_mcp_usage/multi_mcp/eval_multi_mcp/evals_pydantic_mcp.py
+uv run agents_mcp_usage/evaluations/mermaid_evals/evals_pydantic_mcp.py
 
 # Customize model and judge
 AGENT_MODEL="gemini-2.5-pro-preview-06-05" JUDGE_MODEL="gemini-2.0-flash" \
-uv run agents_mcp_usage/multi_mcp/eval_multi_mcp/evals_pydantic_mcp.py
+uv run agents_mcp_usage/evaluations/mermaid_evals/evals_pydantic_mcp.py
 ```
 
 ### Multi-Model Evaluation
 
 ```bash
 # Run evaluation across multiple models
-uv run agents_mcp_usage/multi_mcp/eval_multi_mcp/run_multi_evals.py \
+uv run agents_mcp_usage/evaluations/mermaid_evals/run_multi_evals.py \
   --models "gemini-2.5-pro-preview-06-05,gemini-2.0-flash" \
   --runs 5 \
   --parallel \
@@ -183,7 +183,7 @@ uv run agents_mcp_usage/multi_mcp/eval_multi_mcp/run_multi_evals.py \
   --output-dir ./results
 
 # Sequential execution with custom judge
-uv run agents_mcp_usage/multi_mcp/eval_multi_mcp/run_multi_evals.py \
+uv run agents_mcp_usage/evaluations/mermaid_evals/run_multi_evals.py \
   --models "gemini-2.5-pro-preview-06-05,claude-3-opus" \
   --runs 3 \
   --sequential \
@@ -247,4 +247,4 @@ The system implements robust error handling:
 - **pydantic-evals** - Evaluation framework and metrics
 - **logfire** - Logging and monitoring
 - **rich** - Console output and progress bars
-- **asyncio** - Asynchronous evaluation execution 
+- **asyncio** - Asynchronous evaluation execution
