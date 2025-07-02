@@ -102,8 +102,8 @@ The local dashboard (`merbench_ui.py`) provides:
 ```bash
 # Convert CSV results to JSON format for the public Merbench website
 uv run agents_mcp_usage/evaluations/mermaid_evals/scripts/preprocess_merbench_data.py \
-  mermaid_eval_results/<timestamp>_combined_results.csv \
-  agents_mcp_usage/evaluations/mermaid_evals/results/<timestamp>_processed.json
+  -i "mermaid_eval_results/<timestamp>_combined_results.csv" \
+  -o "agents_mcp_usage/evaluations/mermaid_evals/results/<timestamp>_processed.json"
 ```
 
 ## Evaluation Task & Test Cases
