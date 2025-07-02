@@ -1,35 +1,155 @@
 # Mermaid Diagram Evaluation System
 
-This directory contains evaluation modules for testing LLM agents on mermaid diagram fixing tasks using multiple MCP (Model Context Protocol) servers. The system evaluates how well language models can fix invalid mermaid diagrams while utilizing multiple external tools.
+A benchmarking system for evaluating LLM agents' ability to fix syntactically incorrect Mermaid diagrams using Model Context Protocol (MCP) servers.
 
-## Overview
+**Key Features:**
+- 🎯 Tests three difficulty levels of invalid Mermaid diagrams
+- 🔧 Utilises multiple MCP servers for validation and syntax errors
+- 📊 Comprehensive evaluation metrics and scoring
+- 🏆 Live leaderboard at <https://andrew.ginns.uk/merbench>
 
-The evaluation system consists of two main components:
+## Architecture
 
-1. **`evals_pydantic_mcp.py`** - Core evaluation module for single-model testing
-2. **`run_multi_evals.py`** - Multi-model evaluation runner with parallel execution
+```mermaid
+flowchart TD
+    Runner(("run_multi_evals.py<br/>or<br/>evals_pydantic_mcp.py"))
+    Agent["Pydantic-AI Agent"]
+    MCP["MCP Servers"]
+    LLM["LLM Provider"]
+    Evaluators["Evaluators"]
+    CSV["CSV Results"]
+    Dashboard["merbench_ui.py<br/>(Local Dashboard)"]
+    Script["preprocess_merbench_data.py"]
+    JSON["JSON for Merbench"]
 
-## Evaluation Task
+    Runner --> Agent
+    Agent --> MCP
+    Agent --> LLM
+    Runner --> Evaluators
+    Evaluators --> CSV
+    CSV --> Dashboard
+    CSV -.-> Script
+    Script -.-> JSON
 
-The system tests LLM agents on their ability to:
-- Fix syntactically invalid mermaid diagrams
-- Use both MCP servers (example server for time, mermaid validator for validation)
-- Handle errors gracefully with proper categorization
-- Provide meaningful failure reasons for debugging
+    style Dashboard fill:#9cf,stroke:#36f,stroke-width:2px
+```
 
-### Test Cases
+## Quick Overview
 
-The evaluation includes three test cases of increasing difficulty:
-1. **Easy** - Simple syntax errors in mermaid diagrams
-2. **Medium** - More complex structural issues 
-3. **Hard** - Advanced mermaid syntax problems
+* **Test cases**: 3 invalid Mermaid diagrams (easy/medium/hard)
+* **Success metric**: Diagram syntax validity (100% = all cases pass)
+* **Evaluation runners**: 
+  - `evals_pydantic_mcp.py` - Single-model evaluation
+  - `run_multi_evals.py` - Multi-model parallel evaluation
+* **Results visualisation**: 
+  - `merbench_ui.py` - Local Streamlit dashboard (recommended)
+  - CSV → JSON → Public web dashboard (optional)
+* **Performance scoring**: Based solely on diagram validity (LLMJudges implemented but not scored)
 
-## Output Schema
+## Prerequisites & Setup
 
-### MermaidOutput
+### Requirements
+- Python 3.11+
+- [`uv`](https://github.com/astral-sh/uv) for dependency management
 
-The main output schema captures comprehensive information about each evaluation:
+### Installation
+```bash
+# Install all dependencies
+uv sync
+```
 
+### Configuration
+The evaluation system uses Pydantic-AI and requires environment variables for API keys:
+```bash
+# Required for most models
+export GEMINI_API_KEY="your-key-here"
+
+# Optional for specific models
+export OPENAI_API_KEY="your-key-here"
+```
+
+## Quick Start Guide
+
+### 1. Run a Single-Model Evaluation
+```bash
+# Test a specific model (defaults to gemini-2.5-flash)
+uv run agents_mcp_usage/evaluations/mermaid_evals/evals_pydantic_mcp.py
+```
+
+### 2. Run Multi-Model Benchmarking
+```bash
+# Run evaluation across multiple models in parallel
+uv run agents_mcp_usage/evaluations/mermaid_evals/run_multi_evals.py
+```
+
+### 3. View Results in Local Dashboard (Recommended)
+```bash
+# Launch the interactive Streamlit dashboard to visualise your results
+make leaderboard
+
+# Or run directly:
+uv run streamlit run agents_mcp_usage/evaluations/mermaid_evals/merbench_ui.py
+```
+
+The local dashboard (`merbench_ui.py`) provides:
+- 📊 Interactive leaderboards and performance metrics
+- 📈 Pareto frontier visualisations (performance vs cost/tokens)
+- 🔍 Deep dive analysis with success rates and failure patterns
+- 💰 Configurable model costs
+- 🎯 Advanced filtering by provider, model, and test case
+
+### 4. Export Results for Web Dashboard (Optional)
+```bash
+# Convert CSV results to JSON format for the public Merbench website
+uv run agents_mcp_usage/evaluations/mermaid_evals/scripts/preprocess_merbench_data.py \
+  mermaid_eval_results/<timestamp>_combined_results.csv \
+  agents_mcp_usage/evaluations/mermaid_evals/results/<timestamp>_processed.json
+```
+
+## Evaluation Task & Test Cases
+
+The system challenges LLM agents to:
+1. **Identify and fix syntax errors** in invalid Mermaid diagrams
+2. **Utilise MCP servers** for validation and enhancement
+3. **Handle errors gracefully** with proper categorisation
+4. **Provide meaningful failure reasons** for debugging
+
+### Test Case Difficulty Levels
+
+1. **Easy** (2 syntax errors)
+   - Incorrect node references (`GEMINI` vs `GEM`)
+   - Minor naming inconsistencies
+   - Example: `MCP --> GEMINI` where `GEMINI` is undefined
+
+2. **Medium** (7 syntax errors)
+   - Invalid comment syntax (using `#` instead of `%%`)
+   - Malformed arrows with spaces (`-- >` instead of `-->`)
+   - Direction inconsistencies (`TB` vs `TD`)
+   - Example: `LG -- > MCP` has invalid spacing in arrow
+
+3. **Hard** (Complex structural errors)
+   - Multiple comment syntax errors
+   - Arrow spacing issues throughout
+   - Complex nested subgraph problems
+   - Requires understanding of overall diagram structure
+
+### Example Error Types
+```mermaid
+%% Invalid examples from actual test cases:
+graph LR
+    %% Error 1: Space in arrow
+    A -- > B  %% Should be: A --> B
+    
+    %% Error 2: Undefined node reference
+    C --> UNDEFINED_NODE  %% Node doesn't exist
+    
+    %% Error 3: Wrong comment syntax
+    # This is wrong  %% Should use %%
+```
+
+## Output Schema & Metrics
+
+### MermaidOutput Schema
 ```python
 class MermaidOutput(BaseModel):
     fixed_diagram: str           # The corrected mermaid diagram
@@ -38,213 +158,157 @@ class MermaidOutput(BaseModel):
     tools_used: List[str] = []   # Which MCP tools were called
 ```
 
-### Metrics Captured
-
-The system automatically captures detailed usage metrics:
-
+### Captured Metrics
 - **`requests`** - Number of API requests made
 - **`request_tokens`** - Total tokens in requests
 - **`response_tokens`** - Total tokens in responses
 - **`total_tokens`** - Sum of request and response tokens
 - **`details`** - Additional model-specific usage details
 
-## Failure Reasons
+## Evaluation Criteria
 
-The system provides meaningful failure categorization for debugging and analysis:
+### 1. **MermaidDiagramValid** (Primary Score)
+- **Weight**: 100% of final score
+- **Purpose**: Validates diagram syntax using MCP server
+- **Score**: 1.0 (valid) or 0.0 (invalid)
 
-### Agent-Level Failures (from `fix_mermaid_diagram`)
-
-- **`usage_limit_exceeded`** - Agent hit configured usage limits
-- **`response_validation_failed`** - Agent response failed Pydantic validation
-- **`agent_timeout`** - Agent operation timed out
-- **`http_error_{status_code}`** - HTTP errors (e.g., `http_error_502`, `http_error_503`)
-- **`timeout_error`** - General timeout errors
-- **`connection_error`** - Network/connection issues
-- **`rate_limit_error`** - API rate limiting or quota exceeded
-- **`error_{ExceptionType}`** - Other specific exceptions (fallback)
-
-### Evaluation-Level Failures (from `run_multi_evals`)
-
-- **`evaluation_timeout`** - Entire evaluation run timed out
-- **`evaluation_validation_failed`** - Evaluation framework validation error
-- **`model_api_error`** - Model API-specific errors
-- **`network_error`** - Network-related evaluation failures
-- **`evaluation_error_{ExceptionType}`** - Other evaluation framework errors
-
-## Evaluators
-
-The system uses five different evaluators to assess performance:
-
-### 1. UsedBothMCPTools
-- **Score**: 0.0, 0.5, or 1.0
-- **Purpose**: Checks if the agent used tools from both MCP servers
+### 2. **UsedBothMCPTools**
+- **Purpose**: Tracks MCP server utilisation
 - **Scoring**:
-  - 1.0: Used both example server and mermaid validator
-  - 0.5: Used only one MCP server
-  - 0.0: Used no MCP tools or only non-MCP tools
+  - 1.0: Used both servers (example + validator)
+  - 0.5: Used only one server
+  - 0.0: No MCP tool usage
 
-### 2. UsageLimitNotExceeded
-- **Score**: 0.0 or 1.0
-- **Purpose**: Detects if the case failed due to usage limits
-- **Scoring**:
-  - 1.0: No usage limit failure
-  - 0.0: Failed due to `usage_limit_exceeded`
+### 3. **UsageLimitNotExceeded**
+- **Purpose**: Detects token limit failures
+- **Score**: 1.0 (success) or 0.0 (limit exceeded)
 
-### 3. MermaidDiagramValid
-- **Score**: 0.0 or 1.0
-- **Purpose**: Validates the fixed diagram using the mermaid validator MCP server
-- **Features**:
-  - Skips validation if there was a prior failure
-  - Strips markdown formatting and backticks
-  - Uses retry logic for transient validation errors
-- **Scoring**:
-  - 1.0: Diagram passes mermaid syntax validation
-  - 0.0: Diagram is invalid or validation failed
-
-### 4. LLMJudge (Format Check)
-- **Score**: 0.0 to 1.0 (continuous)
-- **Purpose**: Evaluates if response contains only a mermaid diagram
-- **Rubric**: "The response only contains a mermaid diagram inside the fixed_diagram field, no other text"
-
-### 5. LLMJudge (Structure Check)  
-- **Score**: 0.0 to 1.0 (continuous)
-- **Purpose**: Evaluates if the fixed diagram maintains original structure and intent
-- **Rubric**: "The fixed_diagram field should maintain the same overall structure and intent as the expected output diagram while fixing any syntax errors"
-
-## Retry Logic
-
-The system includes robust retry logic for handling transient API failures:
-
-### Retryable Errors
-- HTTP status codes: 429, 500, 502, 503, 504
-- Connection errors and network issues
-- General `OSError` exceptions
-
-### Retry Configuration
-- **Max attempts**: 3
-- **Base delay**: 1 second
-- **Exponential backoff**: 1s → 2s → 4s
-- **Max delay**: 30 seconds
-- **Jitter**: ±50% randomization to prevent thundering herd
-
-### Non-Retryable Errors
-- HTTP 4xx errors (except 429)
-- Validation errors
-- Authentication errors
-
-## CSV Output Format
-
-Results are exported to CSV files with the following columns:
-
-### Basic Information
-- **Model** - LLM model used
-- **Run** - Run number (for multi-run evaluations)
-- **Case** - Test case name (easy/medium/hard)
-- **Duration** - Task execution time in seconds
-- **Fixed_Diagram_Length** - Length of the output diagram
-- **Failure_Reason** - Categorized failure reason (if any)
-- **Tools_Used** - Pipe-separated list of MCP tools used
-
-### Evaluator Scores
-- **Score_UsedBothMCPTools** - MCP tool usage score
-- **Score_UsageLimitNotExceeded** - Usage limit check score
-- **Score_MermaidDiagramValid** - Diagram validity score
-- **Score_LLMJudge** - Format evaluation scores (2 columns)
-
-### Metrics
-- **Metric_requests** - Number of API requests
-- **Metric_request_tokens** - Input token count
-- **Metric_response_tokens** - Output token count
-- **Metric_total_tokens** - Total token usage
-- **Metric_details** - Additional usage details
-
-## Usage
-
-### Single Model Evaluation
-
-```bash
-# Run evaluation with default model
-uv run agents_mcp_usage/evaluations/mermaid_evals/evals_pydantic_mcp.py
-
-# Customize model and judge
-AGENT_MODEL="gemini-2.5-pro-preview-06-05" JUDGE_MODEL="gemini-2.0-flash" \
-uv run agents_mcp_usage/evaluations/mermaid_evals/evals_pydantic_mcp.py
-```
-
-### Multi-Model Evaluation
-
-```bash
-# Run evaluation across multiple models
-uv run agents_mcp_usage/evaluations/mermaid_evals/run_multi_evals.py \
-  --models "gemini-2.5-pro-preview-06-05,gemini-2.0-flash" \
-  --runs 5 \
-  --parallel \
-  --timeout 600 \
-  --output-dir ./results
-
-# Sequential execution with custom judge
-uv run agents_mcp_usage/evaluations/mermaid_evals/run_multi_evals.py \
-  --models "gemini-2.5-pro-preview-06-05,claude-3-opus" \
-  --runs 3 \
-  --sequential \
-  --judge-model "gemini-2.5-pro-preview-06-05" \
-  --output-dir ./eval_results
-```
-
-### Available Options
-
-- **`--models`** - Comma-separated list of models to evaluate
-- **`--runs`** - Number of evaluation runs per model (default: 3)
-- **`--judge-model`** - Model for LLM judging (default: gemini-2.5-pro-preview-06-05)
-- **`--parallel`** - Run evaluations in parallel (default: true)
-- **`--sequential`** - Force sequential execution
-- **`--timeout`** - Timeout in seconds per evaluation run (default: 600)
-- **`--output-dir`** - Directory to save results (default: ./mermaid_eval_results)
+### 4. **LLMJudge Evaluators** (Not scored)
+- **Format Check**: Response contains only Mermaid diagram
+- **Structure Check**: Maintains original diagram intent
 
 ## MCP Servers
 
-The evaluation uses two MCP servers:
+### 1. Example Server (`mcp_servers/example_server.py`)
+- **Purpose**: Provides utility tools
+- **Features**: Time functions for adding timestamps
 
-1. **Example Server** (`mcp_servers/example_server.py`)
-   - Provides time-related tools
-   - Used to add timestamps to diagrams
+### 2. Mermaid Validator (`mcp_servers/mermaid_validator.py`)
+- **Purpose**: Validates Mermaid syntax
+- **Features**: Returns detailed error messages
 
-2. **Mermaid Validator** (`mcp_servers/mermaid_validator.py`)
-   - Validates mermaid diagram syntax
-   - Returns validation results with error details
+## Error Handling
+
+### Failure Categories
+
+**Agent-level failures:**
+- `usage_limit_exceeded` - Token limit reached
+- `response_validation_failed` - Invalid output format
+- `agent_timeout` - Execution timeout
+- `http_error_*` - HTTP status errors
+- `connection_error` - Network issues
+
+**Evaluation-level failures:**
+- `evaluation_timeout` - Overall timeout
+- `model_api_error` - API authentication/access
+- `evaluation_error_{ExceptionType}` - Unexpected errors
+
+### Retry Strategy
+- **Attempts**: 3 retries for transient errors
+- **Backoff**: Exponential (1s → 2s → 4s)
+- **Jitter**: ±50% randomisation
+- **Max delay**: 30 seconds
+- **Retryable**: HTTP 429/5xx, network errors, OSError
+- **Non-retryable**: HTTP 4xx (except 429), validation errors
 
 ## Output Files
 
-### Single Model
-- `YYYY-MM-DD_HH-MM-SS_mermaid_results_{model}.csv`
+### Directory Structure
+```
+mermaid_eval_results/                                     # Default output directory
+├── YYYY-MM-DD_HH-MM-SS_mermaid_results_{model}.csv      # Single model
+├── YYYY-MM-DD_HH-MM-SS_individual_{model}.csv           # Multi-model individual
+└── YYYY-MM-DD_HH-MM-SS_combined_results.csv             # Multi-model combined
+```
 
-### Multi-Model
-- `YYYY-MM-DD_HH-MM-SS_individual_{model}.csv` - Per-model results
-- `YYYY-MM-DD_HH-MM-SS_combined_results.csv` - All models combined
+The local dashboard (`merbench_ui.py`) automatically detects and loads these CSV files from the `mermaid_eval_results/` directory.
 
-## Logging and Monitoring
+### File Contents
+- Test case details and inputs
+- Fixed diagrams and validation results
+- Performance metrics and scores
+- Error messages and failure reasons
 
-The system integrates with Logfire for comprehensive monitoring:
+## Monitoring & Debugging
 
-- **Agent operations** - MCP server interactions, tool usage
-- **Retry attempts** - Failure reasons, backoff delays
-- **Evaluation progress** - Success rates, timing metrics
-- **Error categorization** - Detailed failure analysis
+All evaluation runs are traced with **Logfire** for comprehensive monitoring:
+- Tool call traces
+- Retry attempts and reasons
+- Execution durations
+- Categorised failure analysis
 
-## Error Handling Best Practices
+## Troubleshooting
 
-The system implements robust error handling:
+### Common Issues
 
-1. **Graceful degradation** - Partial results rather than complete failure
-2. **Meaningful categorization** - Specific failure reasons for debugging
-3. **Retry logic** - Automatic recovery from transient issues
-4. **Comprehensive logging** - Full context for error analysis
-5. **Resource cleanup** - Proper MCP server lifecycle management
+1. **API Key Errors**
+   - Ensure environment variables are set correctly
+   - Check API key permissions and quotas
 
-## Dependencies
+2. **MCP Server Connection Issues**
+   - Verify MCP servers are properly installed
+   - Check server process logs
 
-- **pydantic-ai** - Core agent framework with MCP support
-- **pydantic-evals** - Evaluation framework and metrics
-- **logfire** - Logging and monitoring
-- **rich** - Console output and progress bars
-- **asyncio** - Asynchronous evaluation execution
+3. **Validation Failures**
+   - Review the fixed diagram for syntax errors
+   - Check Mermaid version compatibility
+
+4. **Performance Issues**
+   - Reduce parallel execution for rate limits
+   - Monitor token usage per model
+
+## Advanced Usage
+
+### Custom Model Configuration
+
+You can customise model parameters when running evaluations:
+
+```bash
+# Single model
+# Edit `evals_pydantic_mcp.py` to customise the `agent_model` string
+
+# Multi-model with specific model list
+# Edit `run_multi_evals.py` to customise the `MODELS` list
+```
+
+### Running Specific Test Cases
+
+To test individual cases during development:
+1. Import specific test cases from `mermaid_diagrams.py`
+2. Modify the test loop in `evals_pydantic_mcp.py`
+3. Focus on debugging specific error types
+
+### Adding New Test Cases
+
+1. Add your invalid diagram to `mermaid_diagrams.py`
+2. Document the specific errors it contains
+3. Ensure it has a corresponding valid version
+4. Update the difficulty categorisation
+
+## Contributing
+
+When adding new test cases or evaluators:
+1. Follow the existing schema patterns
+2. Include comprehensive error handling
+3. Add appropriate retry logic
+4. Document failure categories
+5. Test with multiple models before submitting
+6. Update costs.json with new model pricing if needed
+
+## Related Resources
+
+- [Mermaid Documentation](https://mermaid.js.org/)
+- [MCP Protocol Specification](https://github.com/anthropics/mcp)
+- [Pydantic-AI Documentation](https://github.com/pydantic/pydantic-ai)
+- [Streamlit Documentation](https://streamlit.io/) (for local dashboard)
+- [Public Leaderboard](https://andrew.ginns.uk/merbench)
