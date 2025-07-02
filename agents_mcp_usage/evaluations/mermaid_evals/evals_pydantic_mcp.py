@@ -796,7 +796,7 @@ if __name__ == "__main__":
     # agent_model = os.getenv("AGENT_MODEL", DEFAULT_MODEL)
     # agent_model = "gemini-2.5-pro-preview-06-05"
     # agent_model = "openai:o4-mini"
-    agent_model = "gemini-2.5-flash-preview-04-17"
+    agent_model = "gemini-2.5-flash"
     judge_model = os.getenv("JUDGE_MODEL", DEFAULT_MODEL)
 
     async def run_all():
