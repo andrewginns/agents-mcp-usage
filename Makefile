@@ -2,6 +2,9 @@ install:
 	uv sync
 	npm install -g @mermaid-js/mermaid-cli
 
+upgrade:
+	uv sync -U
+
 lint:
 	uv run ruff check .
 
