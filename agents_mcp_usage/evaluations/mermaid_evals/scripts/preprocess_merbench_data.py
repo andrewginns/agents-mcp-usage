@@ -180,7 +180,7 @@ def main():
         if not csv_path.is_absolute():
             csv_path = project_root / csv_path
     else:
-        csv_path = project_root / "mermaid_eval_results" / f"latest_combined_results.csv"
+        csv_path = project_root / "mermaid_eval_results" / "latest_combined_results.csv"
     
     if args.output_json:
         output_path = Path(args.output_json)
