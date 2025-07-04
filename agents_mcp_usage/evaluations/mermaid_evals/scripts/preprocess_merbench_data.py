@@ -82,9 +82,13 @@ def process_csv_for_static_site(csv_path):
     def extract_provider(model_name):
         if model_name.startswith("gemini-"):
             return "Google"
+        elif "nova" in model_name.lower():
+            return "Amazon"
         elif "claude" in model_name.lower():
             return "Anthropic"
         elif "gpt" in model_name.lower():
+            return "OpenAI"
+        elif model_name.startswith("o"):
             return "OpenAI"
         else:
             return "Other"
@@ -176,14 +180,14 @@ def main():
         if not csv_path.is_absolute():
             csv_path = project_root / csv_path
     else:
-        csv_path = project_root / "mermaid_eval_results" / f"{current_month}_gemini_results.csv"
+        csv_path = project_root / "mermaid_eval_results" / f"latest_combined_results.csv"
     
     if args.output_json:
         output_path = Path(args.output_json)
         if not output_path.is_absolute():
             output_path = project_root / output_path
     else:
-        output_path = project_root / "agents_mcp_usage" / "evaluations" / "mermaid_evals" / "results" / f"{current_month}_gemini_results_processed.json"
+        output_path = project_root / "agents_mcp_usage" / "evaluations" / "mermaid_evals" / "results" / f"{current_month}_results_processed.json"
     
     print(f"Processing {csv_path}...")
     data = process_csv_for_static_site(csv_path)
