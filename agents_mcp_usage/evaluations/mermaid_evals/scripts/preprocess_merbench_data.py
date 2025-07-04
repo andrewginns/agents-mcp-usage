@@ -2,6 +2,8 @@
 import pandas as pd
 import json
 import sys
+import argparse
+from datetime import datetime
 from pathlib import Path
 
 # Add parent directory to path to import modules
@@ -9,6 +11,7 @@ sys.path.append(str(Path(__file__).parent.parent))
 
 from agents_mcp_usage.evaluations.mermaid_evals.dashboard_config import DEFAULT_CONFIG
 from agents_mcp_usage.evaluations.mermaid_evals.schemas import DashboardConfig
+from agents_mcp_usage.utils import get_project_root
 
 def parse_metric_details(metric_details_str):
     """Safely parse JSON string from Metric_details column."""
@@ -79,9 +82,13 @@ def process_csv_for_static_site(csv_path):
     def extract_provider(model_name):
         if model_name.startswith("gemini-"):
             return "Google"
+        elif "nova" in model_name.lower():
+            return "Amazon"
         elif "claude" in model_name.lower():
             return "Anthropic"
         elif "gpt" in model_name.lower():
+            return "OpenAI"
+        elif model_name.startswith("o"):
             return "OpenAI"
         else:
             return "Other"
@@ -158,8 +165,29 @@ def process_csv_for_static_site(csv_path):
     return output_data
 
 def main():
-    csv_path = "/home/ubuntu/projects/agents-mcp-usage/mermaid_eval_results/Jun_gemini_results.csv"
-    output_path = "/home/ubuntu/projects/agents-mcp-usage/agents_mcp_usage/evaluations/mermaid_evals/results/Jun_gemini_results_processed.json"
+    parser = argparse.ArgumentParser(description="Process CSV evaluation results for static site")
+    parser.add_argument("-i", "--input_csv", nargs="?", help="Path to input CSV file", default=None)
+    parser.add_argument("-o", "--output_json", nargs="?", help="Path to output JSON file", default=None)
+    
+    args = parser.parse_args()
+    
+    project_root = get_project_root()
+    current_month = datetime.now().strftime("%b").lower()
+    
+    # Set default paths if not provided
+    if args.input_csv:
+        csv_path = Path(args.input_csv)
+        if not csv_path.is_absolute():
+            csv_path = project_root / csv_path
+    else:
+        csv_path = project_root / "mermaid_eval_results" / "latest_combined_results.csv"
+    
+    if args.output_json:
+        output_path = Path(args.output_json)
+        if not output_path.is_absolute():
+            output_path = project_root / output_path
+    else:
+        output_path = project_root / "agents_mcp_usage" / "evaluations" / "mermaid_evals" / "results" / f"{current_month}_results_processed.json"
     
     print(f"Processing {csv_path}...")
     data = process_csv_for_static_site(csv_path)

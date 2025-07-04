@@ -21,12 +21,11 @@ MERBENCH_CONFIG = {
     # --- General Dashboard Settings ---
     "title": "🧜‍♀️ Merbench - LLM Evaluation ",
     "description": (
-        "Getting LLMs to consistently nail the mermaid diagram syntax can be... an adventure. "
-        "\n\nMerbench tests this ability by providing an LLM Agent access to an MCP server that both validates "
-        "and provides error messages to guide correction of syntax. There are three different difficulty levels (test cases), "
-        "and the LLM is given a fixed number of attempts to fix the diagram, if this is exceeded, the test case is considered failed. "
-        "\n\n **Performance is a measure of both tool usage, and Mermaid syntax understanding.**"
-        "\n\nThe leaderboard shows the average success rate across all selected models and difficulty levels over *n runs*."
+        "Getting LLMs to consistently nail the Mermaid diagram syntax can be... an adventure. "
+        "\n\nMerbench evaluates an LLM's ability to autonomously write and debug Mermaid syntax. The agent can access "
+        "an MCP server that validates its code and provides error feedback, guiding it towards a correct solution."
+        "\n\nEach model is tested across three difficulty levels, with a limited number of five attempts per test case. "
+        "Performance is measured by the final success rate, averaged over complete runs, **reflecting both an understanding of Mermaid syntax and effective tool usage.**"
     ),
     "icon": "🧜‍♀️",  # Emoji for the browser tab
     # --- Primary Metric Configuration ---
