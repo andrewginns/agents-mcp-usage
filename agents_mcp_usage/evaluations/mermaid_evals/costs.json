@@ -195,6 +195,29 @@
         ]
       }
     },
+    "gemini-2.5-flash-preview-05-20": {
+      "friendly_name": "Gemini 2.5 Flash Preview (May)",
+      "input": [
+        {
+          "up_to": "inf",
+          "price": 0.15
+        }
+      ],
+      "output": {
+        "non_thinking": [
+          {
+            "up_to": "inf",
+            "price": 0.6
+          }
+        ],
+        "thinking": [
+          {
+            "up_to": "inf",
+            "price": 3.5
+          }
+        ]
+      }
+    },
     "gemini-2.5-flash-preview": {
       "friendly_name": "Gemini 2.5 Flash Preview",
       "input": [
@@ -426,6 +449,74 @@
           {
             "up_to": "inf",
             "price": 4.0
+          }
+        ]
+      }
+    },
+    "bedrock:us.amazon.nova-micro-v1:0": {
+      "friendly_name": "Amazon Nova Micro",
+      "input": [
+        {
+          "up_to": "inf",
+          "price": 0.035
+        }
+      ],
+      "output": {
+        "default": [
+          {
+            "up_to": "inf",
+            "price": 0.14
+          }
+        ]
+      }
+    },
+    "bedrock:us.amazon.nova-lite-v1:0": {
+      "friendly_name": "Amazon Nova Lite",
+      "input": [
+        {
+          "up_to": "inf",
+          "price": 0.06
+        }
+      ],
+      "output": {
+        "default": [
+          {
+            "up_to": "inf",
+            "price": 0.24
+          }
+        ]
+      }
+    },
+    "bedrock:us.amazon.nova-pro-v1:0": {
+      "friendly_name": "Amazon Nova Pro",
+      "input": [
+        {
+          "up_to": "inf",
+          "price": 0.80
+        }
+      ],
+      "output": {
+        "default": [
+          {
+            "up_to": "inf",
+            "price": 3.20
+          }
+        ]
+      }
+    },
+    "bedrock:us.amazon.nova-premier-v1:0": {
+      "friendly_name": "Amazon Nova Premier",
+      "input": [
+        {
+          "up_to": "inf",
+          "price": 2.50
+        }
+      ],
+      "output": {
+        "default": [
+          {
+            "up_to": "inf",
+            "price": 12.50
           }
         ]
       }
