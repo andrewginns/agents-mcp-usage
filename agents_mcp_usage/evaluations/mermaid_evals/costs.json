@@ -1,8 +1,17 @@
 {
-  "_comment": "Prices are per 1 million tokens",
+  "_comment": "Prices are per 1 million tokens - Updated July 19, 2025",
   "_sources": {
     "gemini": "https://ai.google.dev/gemini-api/docs/pricing",
-    "openai": "https://openai.com/api/pricing/"
+    "openai": "https://openai.com/api/pricing/",
+    "bedrock": "https://aws.amazon.com/bedrock/pricing/",
+    "deepseek": "https://platform.deepseek.com/api-docs/pricing",
+    "openrouter": "https://openrouter.ai/models",
+    "github": "https://github.com/marketplace/models",
+    "grok": "https://console.x.ai/pricing",
+    "perplexity": "https://www.perplexity.ai/api/pricing",
+    "fireworks": "https://fireworks.ai/pricing",
+    "together": "https://www.together.ai/pricing",
+    "heroku": "https://www.heroku.com/ai"
   },
   "model_costs": {
     "gemini-2.5-pro-preview-03-25": {
@@ -245,23 +254,21 @@
       "friendly_name": "Gemini 2.5 Flash",
       "input": [
         {
-          "up_to": 200000,
-          "price": 0.15
-        },
-        {
           "up_to": "inf",
-          "price": 0.3
+          "price": 0.15
         }
       ],
       "output": {
-        "default": [
-          {
-            "up_to": 200000,
-            "price": 1.25
-          },
+        "non_thinking": [
           {
             "up_to": "inf",
-            "price": 2.5
+            "price": 0.6
+          }
+        ],
+        "thinking": [
+          {
+            "up_to": "inf",
+            "price": 3.5
           }
         ]
       }
@@ -305,14 +312,31 @@
       "input": [
         {
           "up_to": "inf",
-          "price": 10.0
+          "price": 2.0
         }
       ],
       "output": {
         "default": [
           {
             "up_to": "inf",
-            "price": 40.0
+            "price": 8.0
+          }
+        ]
+      }
+    },
+    "openai:o3-pro": {
+      "friendly_name": "OpenAI o3-pro",
+      "input": [
+        {
+          "up_to": "inf",
+          "price": 20.0
+        }
+      ],
+      "output": {
+        "default": [
+          {
+            "up_to": "inf",
+            "price": 80.0
           }
         ]
       }
@@ -441,7 +465,7 @@
       "input": [
         {
           "up_to": "inf",
-          "price": 1.0
+          "price": 0.8
         }
       ],
       "output": {
@@ -517,6 +541,159 @@
           {
             "up_to": "inf",
             "price": 12.50
+          }
+        ]
+      }
+    },
+    "deepseek:deepseek-chat": {
+      "friendly_name": "DeepSeek Chat (V3)",
+      "input": [
+        {
+          "up_to": "inf",
+          "price": 0.27
+        }
+      ],
+      "output": {
+        "default": [
+          {
+            "up_to": "inf",
+            "price": 1.10
+          }
+        ]
+      }
+    },
+    "deepseek:deepseek-reasoner": {
+      "friendly_name": "DeepSeek Reasoner (R1)",
+      "input": [
+        {
+          "up_to": "inf",
+          "price": 0.55
+        }
+      ],
+      "output": {
+        "default": [
+          {
+            "up_to": "inf",
+            "price": 2.19
+          }
+        ]
+      }
+    },
+    "github:xai/grok-3-mini": {
+      "friendly_name": "Grok 3 Mini (GitHub)",
+      "input": [
+        {
+          "up_to": "inf",
+          "price": 0.25
+        }
+      ],
+      "output": {
+        "default": [
+          {
+            "up_to": "inf",
+            "price": 1.27
+          }
+        ]
+      }
+    },
+    "grok:grok-2-1212": {
+      "friendly_name": "Grok 2",
+      "input": [
+        {
+          "up_to": "inf",
+          "price": 2.0
+        }
+      ],
+      "output": {
+        "default": [
+          {
+            "up_to": "inf",
+            "price": 10.0
+          }
+        ]
+      }
+    },
+    "grok:grok-4": {
+      "friendly_name": "Grok 4",
+      "input": [
+        {
+          "up_to": "inf",
+          "price": 3.0
+        }
+      ],
+      "output": {
+        "default": [
+          {
+            "up_to": "inf",
+            "price": 15.0
+          }
+        ]
+      }
+    },
+    "perplexity:sonar-pro": {
+      "friendly_name": "Perplexity Sonar Pro",
+      "input": [
+        {
+          "up_to": "inf",
+          "price": 3.0
+        }
+      ],
+      "output": {
+        "default": [
+          {
+            "up_to": "inf",
+            "price": 15.0
+          }
+        ]
+      }
+    },
+    "perplexity:sonar": {
+      "friendly_name": "Perplexity Sonar",
+      "input": [
+        {
+          "up_to": "inf",
+          "price": 1.0
+        }
+      ],
+      "output": {
+        "default": [
+          {
+            "up_to": "inf",
+            "price": 5.0
+          }
+        ]
+      }
+    },
+    "ollama:llama3.2": {
+      "friendly_name": "Llama 3.2 (Local)",
+      "input": [
+        {
+          "up_to": "inf",
+          "price": 0.0
+        }
+      ],
+      "output": {
+        "default": [
+          {
+            "up_to": "inf",
+            "price": 0.0
+          }
+        ]
+      }
+    },
+    "ollama:qwen2.5-coder:7b": {
+      "friendly_name": "Qwen 2.5 Coder 7B (Local)",
+      "input": [
+        {
+          "up_to": "inf",
+          "price": 0.0
+        }
+      ],
+      "output": {
+        "default": [
+          {
+            "up_to": "inf",
+            "price": 0.0
           }
         ]
       }
