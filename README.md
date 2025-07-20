@@ -63,6 +63,7 @@ This project aims to teach:
     - `langgraph_mcp.py` - Example of using MCP with LangGraph
     - `oai-agent_mcp.py` - Example of using MCP with OpenAI Agents
     - `pydantic_mcp.py` - Example of using MCP with Pydantic-AI
+    - `pydantic_mcp_factory.py` - Example demonstrating the model factory pattern for multi-provider support
 
 
 - **[agents_mcp_usage/multi_mcp/](agents_mcp_usage/multi_mcp/)** - Advanced multi-MCP server integration examples

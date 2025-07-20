@@ -38,6 +38,7 @@ from agents_mcp_usage.evaluations.mermaid_evals.mermaid_diagrams import (
     valid_mermaid_diagram,
 )
 from agents_mcp_usage.utils import get_mcp_server_path
+from agents_mcp_usage.factory.model_factory import create_agent as create_agent_with_model
 import sys
 import importlib.util
 
@@ -207,7 +208,7 @@ def create_agent(
     """Creates an agent with MCP servers for the specified model.
 
     This function initializes and returns an agent with the necessary MCP
-    servers and model settings.
+    servers and model settings using the new model factory.
 
     Args:
         model: The model to use for the agent.
@@ -219,32 +220,9 @@ def create_agent(
     if model_settings is None:
         model_settings = {}
 
-    # Handle Bedrock models specifically
-    if model.startswith("bedrock:"):
-        from pydantic_ai.models.bedrock import BedrockConverseModel
-        from pydantic_ai.providers.bedrock import BedrockProvider
-
-        # Extract the model name (remove "bedrock:" prefix)
-        model_name = model.replace("bedrock:", "")
-
-        # Create BedrockConverseModel with proper region and profile configuration
-        bedrock_model = BedrockConverseModel(
-            model_name,
-            provider=BedrockProvider(
-                region_name=os.getenv("AWS_REGION", "us-east-1"),
-                profile_name=os.getenv("AWS_PROFILE", "my-aws-profile"),
-            ),
-        )
-
-        return Agent(
-            bedrock_model,
-            mcp_servers=get_mcp_servers(),
-            model_settings=model_settings,
-        )
-
-    # For non-Bedrock models, use the original approach
-    return Agent(
-        model,
+    # Use the new model factory for all models
+    return create_agent_with_model(
+        model=model,
         mcp_servers=get_mcp_servers(),
         model_settings=model_settings,
     )
