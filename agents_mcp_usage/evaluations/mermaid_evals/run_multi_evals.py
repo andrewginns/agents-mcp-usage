@@ -48,7 +48,10 @@ DEFAULT_MODELS = [
     # "gemini-2.5-pro-preview-05-06",
     # "gemini-2.5-pro-preview-03-25",
     # "gemini-2.0-flash",
-    "gemini-2.5-flash",
+    # "gemini-2.5-flash",
+    "gemini-2.5-flash-lite",
+    # "gemini-2.5-flash-preview-09-2025",
+    # "gemini-2.5-flash-lite-preview-09-2025"
     # "bedrock:us.amazon.nova-pro-v1:0",
     # "bedrock:us.amazon.nova-lite-v1:0",
     # "bedrock:us.amazon.nova-micro-v1:0",
@@ -511,13 +514,13 @@ async def main() -> None:
     parser.add_argument(
         "--runs",
         type=int,
-        default=5,
+        default=15,
         help="Number of evaluation runs per model",
     )
     parser.add_argument(
         "--judge-model",
         type=str,
-        default="gemini-2.5-pro-preview-06-05",
+        default="gemini-2.5-pro",
         help="Model to use for LLM judging",
     )
     parser.add_argument(
