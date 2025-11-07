@@ -44,6 +44,34 @@ Run an Agent framework script e.g.:
   
 Check console, Logfire, or the ADK web UI for output
 
+## Docker quickstart
+
+Build the pre-baked evaluation image (includes Python dependencies and the Mermaid CLI):
+
+```bash
+docker build -t merbench .
+```
+
+Run the multi-model Mermaid benchmark with your API keys and a bind mount so results persist on the host:
+
+```bash
+docker run --rm \
+  -e GEMINI_API_KEY="your-gemini-key" \
+  -e OPENAI_API_KEY="your-openai-key" \
+  -v "$(pwd)/mermaid_eval_results:/app/mermaid_eval_results" \
+  merbench --models gemini-1.5-pro,openai-gpt-4.1-mini
+```
+
+The container entrypoint defaults to `run_multi_evals.py`. Override it to launch other tooling, such as the evaluation UI:
+
+```bash
+docker run --rm \
+  -e GEMINI_API_KEY="your-gemini-key" \
+  -v "$(pwd)/mermaid_eval_results:/app/mermaid_eval_results" \
+  --entrypoint uv \
+  merbench run agents_mcp_usage/evaluations/mermaid_evals/merbench_ui.py
+```
+
 ## Project Overview
 
 This project aims to teach:
