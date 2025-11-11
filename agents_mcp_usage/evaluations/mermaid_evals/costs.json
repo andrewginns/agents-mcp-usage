@@ -114,6 +114,31 @@
         ]
       }
     },
+    "gemini-2.5-pro": {
+      "friendly_name": "Gemini 2.5 Pro Preview",
+      "input": [
+        {
+          "up_to": 200000,
+          "price": 1.25
+        },
+        {
+          "up_to": "inf",
+          "price": 2.5
+        }
+      ],
+      "output": {
+        "default": [
+          {
+            "up_to": 200000,
+            "price": 10.0
+          },
+          {
+            "up_to": "inf",
+            "price": 15.0
+          }
+        ]
+      }
+    },
     "gemini-1.5-pro": {
       "friendly_name": "Gemini 1.5 Pro",
       "input": [
@@ -259,7 +284,24 @@
         }
       ],
       "output": {
-        "non_thinking": [
+        "default": [
+          {
+            "up_to": "inf",
+            "price": 2.5
+          }
+        ]
+      }
+    },
+    "gemini-2.5-flash-preview-09-2025": {
+      "friendly_name": "Gemini 2.5 Flash Preview (Sept)",
+      "input": [
+        {
+          "up_to": "inf",
+          "price": 0.3
+        }
+      ],
+      "output": {
+        "default": [
           {
             "up_to": "inf",
             "price": 0.6
@@ -275,6 +317,40 @@
     },
     "gemini-2.5-flash-lite-preview-06-17": {
       "friendly_name": "Gemini 2.5 Flash Lite Preview (Jun)",
+      "input": [
+        {
+          "up_to": "inf",
+          "price": 0.1
+        }
+      ],
+      "output": {
+        "default": [
+          {
+            "up_to": "inf",
+            "price": 0.4
+          }
+        ]
+      }
+    },
+    "gemini-2.5-flash-lite": {
+      "friendly_name": "Gemini 2.5 Flash Lite",
+      "input": [
+        {
+          "up_to": "inf",
+          "price": 0.1
+        }
+      ],
+      "output": {
+        "default": [
+          {
+            "up_to": "inf",
+            "price": 0.4
+          }
+        ]
+      }
+    },
+    "gemini-2.5-flash-lite-preview-09-2025": {
+      "friendly_name": "Gemini 2.5 Flash Lite Preview (Sept)",
       "input": [
         {
           "up_to": "inf",
