@@ -6,11 +6,11 @@ leveraging PydanticAI's built-in provider support and handling special cases.
 """
 
 import os
+import re
 from typing import Any, Dict, Optional, Union
-from pydantic_ai import Agent
+from pydantic_ai import Agent, InlineDefsJsonSchemaTransformer
 from pydantic_ai.models import Model
-from pydantic_ai.models.openai import OpenAIModel
-from pydantic_ai.profiles._json_schema import InlineDefsJsonSchemaTransformer
+from pydantic_ai.models.openai import OpenAIResponsesModel
 from pydantic_ai.profiles.openai import OpenAIModelProfile
 from pydantic_ai.providers.openai import OpenAIProvider
 
@@ -48,6 +48,47 @@ PROVIDER_CONFIGS = {
         "env_var": "PERPLEXITY_API_KEY"
     }
 }
+
+
+def ensure_openai_responses_model(model_string: str) -> str:
+    """Ensure OpenAI models use the Responses API.
+
+    This helper normalises any OpenAI model identifier to the
+    `openai-responses:` provider namespace so that PydanticAI
+    will use the OpenAI Responses API rather than Chat Completions.
+
+    Examples:
+        "gpt-5" -> "openai-responses:gpt-5"
+        "openai:gpt-5-mini" -> "openai-responses:gpt-5-mini"
+        "openai-responses:gpt-5" -> "openai-responses:gpt-5" (unchanged)
+    """
+    # Avoid double-prefixing if already using Responses API directly
+    if model_string.startswith("openai-responses:"):
+        return model_string
+
+    provider, model_name = parse_model_string(model_string)
+    if provider == "openai":
+        return f"openai-responses:{model_name}"
+
+    return model_string
+
+
+REASONING_SUFFIX_RE = re.compile(r"\s*\((low|medium|high)\)\s*$", re.IGNORECASE)
+
+
+def extract_reasoning_effort(model_string: str) -> tuple[str, Optional[str]]:
+    """Strip trailing reasoning hint like "(medium)" from model string.
+
+    Returns the base model string and the effort level (lowercased) if present.
+    """
+
+    match = REASONING_SUFFIX_RE.search(model_string)
+    if not match:
+        return model_string.strip(), None
+
+    effort = match.group(1).lower()
+    base = REASONING_SUFFIX_RE.sub("", model_string).strip()
+    return base, effort
 
 
 def parse_model_string(model_string: str) -> tuple[Optional[str], str]:
@@ -102,8 +143,8 @@ def handle_bedrock_model(
 
 
 def handle_openai_compatible(
-    model_name: str,
     provider: str,
+    model_name: str,
     provider_kwargs: Optional[Dict[str, Any]] = None
 ) -> Model:
     """Handle OpenAI-compatible providers that need custom configuration."""
@@ -131,13 +172,13 @@ def handle_openai_compatible(
     # Create model with profile if specified
     if config.get("profile"):
         profile = OpenAIModelProfile(**config["profile"])
-        return OpenAIModel(
+        return OpenAIResponsesModel(
             model_name,
             provider=provider_instance,
             profile=profile,
         )
     else:
-        return OpenAIModel(
+        return OpenAIResponsesModel(
             model_name,
             provider=provider_instance,
         )
@@ -164,6 +205,9 @@ def create_model(
     Returns:
         Either a Model instance or the original string for PydanticAI to handle
     """
+    # First, normalise any OpenAI models to use the Responses API
+    model_string = ensure_openai_responses_model(model_string)
+
     provider, model_name = parse_model_string(model_string)
     
     # No provider prefix - let PydanticAI handle it
@@ -171,7 +215,8 @@ def create_model(
         return model_string
     
     # Standard providers that PydanticAI auto-detects
-    if provider in ["google", "openai", "anthropic"]:
+    # Note: OpenAI models have been converted to "openai-responses:*" above
+    if provider in ["google", "anthropic"]:
         return model_string
     
     # Providers with native PydanticAI support
@@ -228,8 +273,24 @@ def create_agent(
         Configured Agent instance
     """
     if isinstance(model, str):
-        model = create_model(model, model_settings, provider_kwargs)
-    
+        base_model, reasoning_effort = extract_reasoning_effort(model)
+
+        # Ensure we have a dict to attach model-level settings
+        if model_settings is None:
+            model_settings = {}
+
+        # Only apply reasoning hint to OpenAI Responses-capable models
+        provider, _ = parse_model_string(base_model)
+        if (
+            reasoning_effort
+            and isinstance(model_settings, dict)
+            and provider in {"openai", "openai-responses"}
+            and "openai_reasoning_effort" not in model_settings
+        ):
+            model_settings["openai_reasoning_effort"] = reasoning_effort
+
+        model = create_model(base_model, model_settings, provider_kwargs)
+
     return Agent(
         model,
         mcp_servers=mcp_servers,

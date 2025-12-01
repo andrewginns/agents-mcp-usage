@@ -594,16 +594,16 @@ def create_evaluation_dataset(
             UsedBothMCPTools(),
             UsageLimitNotExceeded(),
             MermaidDiagramValid(),
-            LLMJudge(
-                rubric="The response only contains a mermaid diagram inside the fixed_diagram field, no other text. Ignore the metrics, failure_reason, and tools_used fields.",
-                include_input=False,
-                model=judge_model,
-            ),
-            LLMJudge(
-                rubric="The fixed_diagram field should maintain the same overall structure and intent as the expected output diagram while fixing any syntax errors. Check if nodes, connections, and labels are preserved. The current time placeholder should be replaced with a valid datetime. Ignore the metrics, failure_reason, and tools_used fields.",
-                include_input=False,
-                model=judge_model,
-            ),
+            # LLMJudge(
+            #     rubric="The response only contains a mermaid diagram inside the fixed_diagram field, no other text. Ignore the metrics, failure_reason, and tools_used fields.",
+            #     include_input=False,
+            #     model=judge_model,
+            # ),
+            # LLMJudge(
+            #     rubric="The fixed_diagram field should maintain the same overall structure and intent as the expected output diagram while fixing any syntax errors. Check if nodes, connections, and labels are preserved. The current time placeholder should be replaced with a valid datetime. Ignore the metrics, failure_reason, and tools_used fields.",
+            #     include_input=False,
+            #     model=judge_model,
+            # ),
         ],
     )
 

@@ -230,6 +230,15 @@ def calculate_costs(
     Returns:
         The DataFrame with the calculated costs.
     """
+    def _safe_numeric(value):
+        """Return a float, coercing missing/NA values to 0 to keep cost math stable."""
+        if pd.isna(value):
+            return 0
+        try:
+            return float(value)
+        except (TypeError, ValueError):
+            return 0
+
     df_with_costs = df.copy()
     cost_calc_config = eval_config.get("cost_calculation", {})
     input_token_cols = cost_calc_config.get("input_token_cols", [])
@@ -247,9 +256,9 @@ def calculate_costs(
             continue
 
         try:
-            input_tokens = sum(row.get(col, 0) or 0 for col in input_token_cols)
-            output_tokens = sum(row.get(col, 0) or 0 for col in output_token_cols)
-            thinking_tokens = row.get("thinking_tokens", 0) or 0
+            input_tokens = sum(_safe_numeric(row.get(col, 0)) for col in input_token_cols)
+            output_tokens = sum(_safe_numeric(row.get(col, 0)) for col in output_token_cols)
+            thinking_tokens = _safe_numeric(row.get("thinking_tokens", 0))
             non_thinking_output_tokens = output_tokens - thinking_tokens
 
             total_tokens = input_tokens + output_tokens
@@ -318,16 +327,22 @@ def process_data(
     # Extract token counts from metric details (assuming 'Metric_details' exists)
     if "Metric_details" in processed_df.columns:
         metric_details = processed_df["Metric_details"].apply(parse_metric_details)
+
+        def _extract_token(details: Dict, key: str):
+            if not isinstance(details, dict):
+                return pd.NA
+            return details.get(key, pd.NA)
+
         processed_df["thinking_tokens"] = metric_details.apply(
-            lambda x: x.get("thoughts_tokens", 0)
+            lambda x: _extract_token(x, "thoughts_tokens")
         )
         processed_df["text_tokens"] = metric_details.apply(
-            lambda x: x.get("text_prompt_tokens", 0)
+            lambda x: _extract_token(x, "text_prompt_tokens")
         )
     else:
         # Ensure these columns exist even if Metric_details is missing
-        processed_df["thinking_tokens"] = 0
-        processed_df["text_tokens"] = 0
+        processed_df["thinking_tokens"] = pd.NA
+        processed_df["text_tokens"] = pd.NA
 
     # Calculate total response tokens
     processed_df["total_response_tokens"] = (

@@ -1,11 +1,13 @@
 #!/usr/bin/env python3
-import pandas as pd
-import json
-import sys
 import argparse
+import json
+import re
+import sys
 from datetime import datetime
 from pathlib import Path
-from typing import Dict, List, Any
+from typing import Any, Dict, List
+
+import pandas as pd
 
 # Add parent directory to path to import modules
 sys.path.append(str(Path(__file__).parent.parent))
@@ -13,6 +15,31 @@ sys.path.append(str(Path(__file__).parent.parent))
 from agents_mcp_usage.evaluations.mermaid_evals.dashboard_config import DEFAULT_CONFIG
 from agents_mcp_usage.evaluations.mermaid_evals.schemas import DashboardConfig
 from agents_mcp_usage.utils import get_project_root
+
+
+REASONING_SUFFIX_RE = re.compile(r"\s*\((low|medium|high)\)\s*$", re.IGNORECASE)
+
+
+def normalize_model_name(model_name: Any) -> Any:
+    """Normalize model names for cost lookup.
+
+    - Strip trailing reasoning hints like "(medium)".
+    - Map OpenAI Responses provider prefix to the standard OpenAI key used in costs.json.
+    - Add an "openai:" prefix for bare GPT model names.
+    """
+
+    if not isinstance(model_name, str):
+        return model_name
+
+    name = model_name.strip()
+    name = REASONING_SUFFIX_RE.sub("", name).strip()
+
+    if name.startswith("openai-responses:"):
+        name = "openai:" + name.split(":", 1)[1]
+    elif name.startswith("gpt-") and ":" not in name:
+        name = f"openai:{name}"
+
+    return name
 
 def load_model_costs(file_path: Path) -> Dict[str, Any]:
     """Load model costs from JSON file."""
@@ -63,8 +90,9 @@ def calculate_costs(df: pd.DataFrame, cost_config: Dict, config: DashboardConfig
             continue
             
         model = row.get("Model")
-        model_costs = cost_config.get(model)
-        
+        model_key = normalize_model_name(model)
+        model_costs = cost_config.get(model_key)
+
         if not model_costs:
             continue
             
