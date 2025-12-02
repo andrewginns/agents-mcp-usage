@@ -230,15 +230,6 @@ def calculate_costs(
     Returns:
         The DataFrame with the calculated costs.
     """
-    def _safe_numeric(value):
-        """Return a float, coercing missing/NA values to 0 to keep cost math stable."""
-        if pd.isna(value):
-            return 0
-        try:
-            return float(value)
-        except (TypeError, ValueError):
-            return 0
-
     df_with_costs = df.copy()
     cost_calc_config = eval_config.get("cost_calculation", {})
     input_token_cols = cost_calc_config.get("input_token_cols", [])
@@ -256,9 +247,9 @@ def calculate_costs(
             continue
 
         try:
-            input_tokens = sum(_safe_numeric(row.get(col, 0)) for col in input_token_cols)
-            output_tokens = sum(_safe_numeric(row.get(col, 0)) for col in output_token_cols)
-            thinking_tokens = _safe_numeric(row.get("thinking_tokens", 0))
+            input_tokens = sum(row.get(col, 0) or 0 for col in input_token_cols)
+            output_tokens = sum(row.get(col, 0) or 0 for col in output_token_cols)
+            thinking_tokens = row.get("thinking_tokens", 0) or 0
             non_thinking_output_tokens = output_tokens - thinking_tokens
 
             total_tokens = input_tokens + output_tokens
@@ -327,22 +318,34 @@ def process_data(
     # Extract token counts from metric details (assuming 'Metric_details' exists)
     if "Metric_details" in processed_df.columns:
         metric_details = processed_df["Metric_details"].apply(parse_metric_details)
-
-        def _extract_token(details: Dict, key: str):
-            if not isinstance(details, dict):
-                return pd.NA
-            return details.get(key, pd.NA)
-
         processed_df["thinking_tokens"] = metric_details.apply(
-            lambda x: _extract_token(x, "thoughts_tokens")
+            lambda x: x.get("thoughts_tokens", 0)
         )
         processed_df["text_tokens"] = metric_details.apply(
-            lambda x: _extract_token(x, "text_prompt_tokens")
+            lambda x: x.get("text_prompt_tokens", 0)
         )
     else:
         # Ensure these columns exist even if Metric_details is missing
-        processed_df["thinking_tokens"] = pd.NA
-        processed_df["text_tokens"] = pd.NA
+        processed_df["thinking_tokens"] = 0
+        processed_df["text_tokens"] = 0
+
+    # Normalize token columns so missing usage is treated as 0.
+    # Without this, groupby means in Deep Dive charts ignore NaNs and appear inflated
+    # relative to the leaderboard (which zero-fills during summation).
+    cost_calc_config = eval_config.cost_calculation
+    input_token_cols = cost_calc_config.input_token_cols
+    output_token_cols = cost_calc_config.output_token_cols
+
+    token_cols = list(dict.fromkeys(input_token_cols + output_token_cols))
+    for col in token_cols:
+        if col not in processed_df.columns:
+            processed_df[col] = 0
+        else:
+            processed_df[col] = pd.to_numeric(processed_df[col], errors="coerce").fillna(0)
+
+    processed_df["thinking_tokens"] = pd.to_numeric(
+        processed_df.get("thinking_tokens", 0), errors="coerce"
+    ).fillna(0)
 
     # Calculate total response tokens
     processed_df["total_response_tokens"] = (
@@ -350,13 +353,9 @@ def process_data(
     )
 
     # Calculate total tokens for leaderboard
-    cost_calc_config = eval_config.cost_calculation
-    input_token_cols = cost_calc_config.input_token_cols
-    output_token_cols = cost_calc_config.output_token_cols
-
     processed_df["total_tokens"] = 0
-    for col in input_token_cols + output_token_cols:
-        processed_df["total_tokens"] += processed_df.get(col, 0).fillna(0)
+    for col in token_cols:
+        processed_df["total_tokens"] += processed_df[col]
 
     # Standardize primary metric score
     primary_metric_config = eval_config.primary_metric
@@ -1038,7 +1037,7 @@ def main() -> None:
                     "Avg Duration (s)", format="%.2fs"
                 ),
                 "Avg Total Tokens": st.column_config.NumberColumn(
-                    "Avg Total Tokens", format="%.0f"
+                    "Avg Total Tokens (input + output)", format="%.0f"
                 ),
             },
             use_container_width=True,
@@ -1051,8 +1050,12 @@ def main() -> None:
     x_axis_mode = st.radio(
         "Compare performance against:",
         list(pareto_config.x_axis_options.keys()),
-        format_func=lambda x: x.capitalize(),
+        format_func=lambda key: pareto_config.x_axis_options[key].label,
         horizontal=True,
+        help=(
+            "Output tokens are response + thinking. "
+            "Leaderboard totals also include request tokens."
+        ),
     )
     st.plotly_chart(
         create_pareto_frontier_plot(

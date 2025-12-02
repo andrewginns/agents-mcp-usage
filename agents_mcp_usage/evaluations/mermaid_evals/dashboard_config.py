@@ -55,9 +55,12 @@ MERBENCH_CONFIG = {
             "title": "Performance vs. {x_axis_label}",
             "y_axis": "primary_metric",  # Uses the primary_metric defined above
             "x_axis_options": {
-                "cost": {"column": "total_cost", "label": "Cost"},
-                "tokens": {"column": "total_response_tokens", "label": "Tokens"},
-                "duration": {"column": "Duration", "label": "Duration"},
+                "cost": {"column": "total_cost", "label": "Cost ($)"},
+                "tokens": {
+                    "column": "total_response_tokens",
+                    "label": "Output Tokens (response + thinking)",
+                },
+                "duration": {"column": "Duration", "label": "Duration (s)"},
             },
             "color_axis": "Duration",  # Column to use for the color scale
         },
@@ -97,9 +100,9 @@ MERBENCH_CONFIG = {
             "title": "Average Token Usage by Type",
             "type": "stacked_bar",
             "series": [
-                {"name": "Request", "column": "Metric_request_tokens"},
-                {"name": "Response", "column": "Metric_response_tokens"},
-                {"name": "Thinking", "column": "thinking_tokens"},
+                {"name": "Input Tokens (request)", "column": "Metric_request_tokens"},
+                {"name": "Output Tokens (response)", "column": "Metric_response_tokens"},
+                {"name": "Output Tokens (thinking)", "column": "thinking_tokens"},
             ],
         },
         "cost_breakdown": {

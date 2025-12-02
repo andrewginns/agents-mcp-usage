@@ -187,11 +187,16 @@ def process_csv_for_static_site(csv_path):
     # Read CSV
     df = pd.read_csv(csv_path)
     
-    # Replace NaN values with 0 for numeric columns
-    numeric_columns = ['Metric_request_tokens', 'Metric_response_tokens', 'Metric_total_tokens']
-    for col in numeric_columns:
-        if col in df.columns:
-            df[col] = df[col].fillna(0)
+    # Normalize token columns so missing usage is treated as 0 and types are numeric.
+    cost_calc_config = config.cost_calculation
+    input_token_cols = cost_calc_config.input_token_cols
+    output_token_cols = cost_calc_config.output_token_cols
+    token_cols = input_token_cols + output_token_cols
+
+    for col in token_cols:
+        if col not in df.columns:
+            df[col] = 0
+        df[col] = pd.to_numeric(df[col], errors="coerce").fillna(0)
     
     # Extract grouping column (test case types)
     df['test_group'] = df['Case'].apply(lambda x: x.split('_')[-1] if '_' in x else 'other')
@@ -204,9 +209,16 @@ def process_csv_for_static_site(csv_path):
     else:
         df["thinking_tokens"] = 0
         df["text_tokens"] = 0
-    
-    # Calculate total tokens
-    df["total_tokens"] = df["Metric_total_tokens"].fillna(0)
+
+    df["thinking_tokens"] = pd.to_numeric(df["thinking_tokens"], errors="coerce").fillna(0)
+    df["text_tokens"] = pd.to_numeric(df["text_tokens"], errors="coerce").fillna(0)
+
+    # Calculate total tokens in the same way as the local Streamlit dashboard:
+    # sum of input + output token columns (including thinking tokens).
+    df["total_tokens"] = 0
+    for col in token_cols:
+        df[col] = pd.to_numeric(df[col], errors="coerce").fillna(0)
+        df["total_tokens"] += df[col]
     
     # Calculate success rate (primary metric)
     df["Success_Rate"] = df["Score_MermaidDiagramValid"] * 100
