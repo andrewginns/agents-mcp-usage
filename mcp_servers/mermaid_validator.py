@@ -66,7 +66,7 @@ async def validate_mermaid_diagram(diagram_text: str) -> MermaidValidationResult
             [
                 "npx",
                 "-y",
-                "@mermaid-js/mermaid-cli",
+                "@mermaid-js/mermaid-cli@11.4.2",
                 "-i",
                 temp_file_path,
                 "-o",

@@ -225,6 +225,33 @@ Key features:
 - Employs context manager for server lifecycle management
 - Includes comprehensive instrumentation for both MCP and Pydantic-AI
 
+### Pydantic-AI with Model Factory Pattern
+
+**File:** `pydantic_mcp_factory.py`
+
+This example demonstrates how to use the model factory pattern to create agents with different providers while maintaining the same MCP functionality.
+
+```bash
+# Use default Gemini model
+uv run agents_mcp_usage/basic_mcp/basic_mcp_use/pydantic_mcp_factory.py
+
+# Use DeepSeek model
+uv run agents_mcp_usage/basic_mcp/basic_mcp_use/pydantic_mcp_factory.py --model deepseek
+
+# Use OpenAI model with explicit provider
+uv run agents_mcp_usage/basic_mcp/basic_mcp_use/pydantic_mcp_factory.py --model "openai:gpt-4"
+
+# List available model aliases
+uv run agents_mcp_usage/basic_mcp/basic_mcp_use/pydantic_mcp_factory.py --list-models
+```
+
+Key features:
+- Demonstrates the model factory pattern for multi-provider support
+- Supports 13+ providers including Google, OpenAI, Anthropic, AWS Bedrock, DeepSeek, OpenRouter, GitHub, Grok, Perplexity, and local Ollama models
+- Command-line interface for easy model switching
+- Shows how to handle provider-specific configurations
+- Maintains the same MCP server functionality across all providers
+
 
 ## Understanding the Examples
 
@@ -245,4 +272,4 @@ All examples connect to the same MCP server defined in `mcp_servers/example_serv
 - A time tool (`get_current_time()`) 
 - A dynamic greeting resource (`greeting://{name}`)
 
-You can modify the MCP server to add your own tools and resources for experimentation. 
+You can modify the MCP server to add your own tools and resources for experimentation.

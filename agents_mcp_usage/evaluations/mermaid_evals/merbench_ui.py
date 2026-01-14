@@ -1,5 +1,6 @@
 import os
 import glob
+import csv
 import pandas as pd
 import plotly.graph_objects as go
 import streamlit as st
@@ -10,6 +11,9 @@ from pydantic import ValidationError
 
 from agents_mcp_usage.evaluations.mermaid_evals.dashboard_config import (
     DEFAULT_CONFIG,
+)
+from agents_mcp_usage.evaluations.mermaid_evals.evals_pydantic_mcp import (
+    REQUEST_USAGE_COLUMN,
 )
 from agents_mcp_usage.evaluations.mermaid_evals.schemas import DashboardConfig
 
@@ -27,6 +31,27 @@ st.set_page_config(
 )
 
 # --- Cost Loading ---
+
+# NOTE: Reasoning-effort suffixes (e.g. "(medium)") do not change token prices.
+# We treat these as aliases of the base model for cost lookup/UI purposes.
+REASONING_SUFFIX_RE = re.compile(
+    r"\s*\((low|medium|high|none|minimal|xhigh)\)\s*$", re.IGNORECASE
+)
+
+
+def extract_reasoning_effort(model_string: str) -> tuple[str, str | None]:
+    """Strip trailing reasoning hint like "(medium)" from a model string.
+
+    Returns:
+        (base_model_string, effort_level_lowercased_or_none)
+    """
+    match = REASONING_SUFFIX_RE.search(str(model_string))
+    if not match:
+        return str(model_string).strip(), None
+
+    effort = match.group(1).lower()
+    base = REASONING_SUFFIX_RE.sub("", str(model_string)).strip()
+    return base, effort
 
 
 def load_model_costs(file_path: str) -> tuple[Dict, Dict]:
@@ -146,17 +171,77 @@ def load_csv_data(file_paths: List[str]) -> pd.DataFrame:
     for file_path in file_paths:
         try:
             df = pd.read_csv(file_path)
-            if not df.empty:
-                df["source_file"] = os.path.basename(file_path)
-                dataframes.append(df)
-            else:
-                st.warning(f"Empty file skipped: {os.path.basename(file_path)}")
+        except pd.errors.ParserError as e:
+            st.warning(
+                f"Parsing error in {os.path.basename(file_path)} ({e}); "
+                "retrying with python engine and header fix for ragged rows."
+            )
+            try:
+                # Inspect header + a few lines to detect extra trailing columns (e.g., Requests_Used)
+                with open(file_path, "r", encoding="utf-8") as f:
+                    reader = csv.reader(f)
+                    try:
+                        header_row = next(reader)
+                    except StopIteration:
+                        st.warning(f"Empty file skipped: {os.path.basename(file_path)}")
+                        continue
+
+                    target_header = header_row[:]
+                    max_len = len(header_row)
+                    sample_rows: list[list[str]] = []
+                    for _ in range(50):
+                        try:
+                            row = next(reader)
+                        except StopIteration:
+                            break
+                        sample_rows.append(row)
+                        max_len = max(max_len, len(row))
+
+                    # If data rows have one extra field, treat it as Requests_Used
+                    if REQUEST_USAGE_COLUMN not in target_header and max_len == len(target_header) + 1:
+                        target_header.append(REQUEST_USAGE_COLUMN)
+                    elif max_len > len(target_header):
+                        # Preserve any additional trailing fields rather than dropping rows
+                        extra_cols = [f"extra_{i}" for i in range(max_len - len(target_header))]
+                        target_header.extend(extra_cols)
+
+                def _pad_or_trim(row: list[str]) -> list[str]:
+                    if len(row) < len(target_header):
+                        return row + [""] * (len(target_header) - len(row))
+                    if len(row) > len(target_header):
+                        return row[: len(target_header)]
+                    return row
+
+                df = pd.read_csv(
+                    file_path,
+                    engine="python",
+                    names=target_header,
+                    header=0,  # original header present; skip it
+                    on_bad_lines=_pad_or_trim,
+                )
+            except Exception as e2:
+                st.error(
+                    f"Could not load {os.path.basename(file_path)} even with fallback parser: {e2}"
+                )
+                continue
         except (pd.errors.EmptyDataError, FileNotFoundError) as e:
             st.error(f"Could not load {os.path.basename(file_path)}: {e}")
         except Exception as e:
             st.error(
                 f"An unexpected error occurred while loading {os.path.basename(file_path)}: {e}"
             )
+            continue
+
+        if df.empty:
+            st.warning(f"Empty file skipped: {os.path.basename(file_path)}")
+            continue
+
+        if REQUEST_USAGE_COLUMN not in df.columns:
+            df[REQUEST_USAGE_COLUMN] = "na"
+        df[REQUEST_USAGE_COLUMN] = df[REQUEST_USAGE_COLUMN].fillna("na")
+
+        df["source_file"] = os.path.basename(file_path)
+        dataframes.append(df)
 
     return pd.concat(dataframes, ignore_index=True) if dataframes else pd.DataFrame()
 
@@ -329,19 +414,45 @@ def process_data(
         processed_df["thinking_tokens"] = 0
         processed_df["text_tokens"] = 0
 
+    # Normalize token columns so missing usage is treated as 0.
+    # Without this, groupby means in Deep Dive charts ignore NaNs and appear inflated
+    # relative to the leaderboard (which zero-fills during summation).
+    cost_calc_config = eval_config.cost_calculation
+    input_token_cols = cost_calc_config.input_token_cols
+    output_token_cols = cost_calc_config.output_token_cols
+
+    token_cols = list(dict.fromkeys(input_token_cols + output_token_cols))
+    for col in token_cols:
+        if col not in processed_df.columns:
+            processed_df[col] = 0
+        else:
+            processed_df[col] = pd.to_numeric(processed_df[col], errors="coerce").fillna(0)
+
+    processed_df["thinking_tokens"] = pd.to_numeric(
+        processed_df.get("thinking_tokens", 0), errors="coerce"
+    ).fillna(0)
+
     # Calculate total response tokens
     processed_df["total_response_tokens"] = (
         processed_df.get("Metric_response_tokens", 0) + processed_df["thinking_tokens"]
     )
 
     # Calculate total tokens for leaderboard
-    cost_calc_config = eval_config.cost_calculation
-    input_token_cols = cost_calc_config.input_token_cols
-    output_token_cols = cost_calc_config.output_token_cols
-
     processed_df["total_tokens"] = 0
-    for col in input_token_cols + output_token_cols:
-        processed_df["total_tokens"] += processed_df.get(col, 0).fillna(0)
+    for col in token_cols:
+        processed_df["total_tokens"] += processed_df[col]
+
+    # Normalize score columns to numeric to avoid string multiplication/skew
+    score_cols = [col for col in processed_df.columns if col.startswith("Score_")]
+    for col in score_cols:
+        processed_df[col] = pd.to_numeric(processed_df[col], errors="coerce").fillna(0)
+
+    # Normalize request-usage counts for aggregation
+    if REQUEST_USAGE_COLUMN not in processed_df.columns:
+        processed_df[REQUEST_USAGE_COLUMN] = 0
+    processed_df[REQUEST_USAGE_COLUMN] = pd.to_numeric(
+        processed_df[REQUEST_USAGE_COLUMN], errors="coerce"
+    ).fillna(0)
 
     # Standardize primary metric score
     primary_metric_config = eval_config.primary_metric
@@ -405,6 +516,7 @@ def create_leaderboard(
         "Cost": ("total_cost", "mean"),
         "Duration": ("Duration", "mean"),
         "Avg Total Tokens": ("total_tokens", "mean"),
+        "Avg Requests": (REQUEST_USAGE_COLUMN, "mean"),
         "Runs": ("Model", "size"),
     }
 
@@ -784,29 +896,59 @@ def create_cost_breakdown_plot(
 
 def extract_provider_from_model_name(model_name: str) -> str:
     """Extract provider from model name based on common patterns.
-    
+
+    Notes:
+        For `openrouter:` models, we derive the provider from the portion before the
+        first `/` in the OpenRouter model id (e.g. `openrouter:anthropic/...` -> `Anthropic`).
+
     Args:
         model_name: The model name string
-        
+
     Returns:
         The provider name
     """
-    if model_name.startswith("gemini-"):
+    name = str(model_name)
+
+    if name.startswith("openrouter:"):
+        openrouter_id = name.split(":", 1)[1]
+        provider_id = openrouter_id.split("/", 1)[0] if "/" in openrouter_id else openrouter_id
+        provider_key = provider_id.strip().lower()
+
+        provider_map = {
+            "amazon": "Amazon",
+            "anthropic": "Anthropic",
+            "cohere": "Cohere",
+            "deepseek": "DeepSeek",
+            "google": "Google",
+            "meta-llama": "Meta",
+            "mistralai": "Mistral",
+            "moonshotai": "MoonshotAI",
+            "openai": "OpenAI",
+            "qwen": "Qwen",
+            "x-ai": "xAI",
+        }
+
+        if provider_key in provider_map:
+            return provider_map[provider_key]
+
+        fallback = provider_id.replace("-", " ").replace("_", " ").strip()
+        return fallback.title() if fallback else "OpenRouter"
+
+    if name.startswith("gemini-"):
         return "Google"
-    elif model_name.startswith("openai:"):
+    if name.startswith("openai:"):
         return "OpenAI"
-    elif model_name.startswith("bedrock:"):
-        if "claude" in model_name:
+    if name.startswith("bedrock:"):
+        if "claude" in name:
             return "Anthropic (Bedrock)"
         return "Amazon Bedrock"
-    elif model_name.startswith("claude-"):
+    if name.startswith("claude-"):
         return "Anthropic"
-    elif "claude" in model_name.lower():
+    if "claude" in name.lower():
         return "Anthropic"
-    elif "gpt" in model_name.lower():
+    if "gpt" in name.lower():
         return "OpenAI"
-    else:
-        return "Other"
+    return "Other"
 
 
 def main() -> None:
@@ -908,29 +1050,65 @@ def main() -> None:
     model_costs, friendly_names = load_model_costs(cost_file_path)
     available_models = sorted(df_initial["Model"].unique())
 
-    cost_config = {}
-    user_cost_override = {}
+    def _make_zero_cost_config() -> Dict:
+        return {
+            "input": [{"up_to": float("inf"), "price": 0.0}],
+            "output": {"default": [{"up_to": float("inf"), "price": 0.0}]},
+        }
+
+    # Group reasoning-effort variants (e.g. "openai:gpt-5.1 (medium)") under their
+    # base model so they share the same token pricing.
+    from collections import defaultdict
+
+    base_to_models: dict[str, list[str]] = defaultdict(list)
+    model_to_base: dict[str, str] = {}
+
+    for model in available_models:
+        base_model, effort = extract_reasoning_effort(model)
+        model_to_base[model] = base_model
+        base_to_models[base_model].append(model)
+
+        # Extend plot labels for variants (friendly base name + suffix)
+        if effort:
+            base_friendly = friendly_names.get(base_model, base_model)
+            friendly_names[model] = f"{base_friendly} ({effort})"
+
+    base_models = sorted(base_to_models.keys())
+
+    # Base model -> pricing config
+    base_cost_config: dict[str, Dict] = {}
+    for base_model in base_models:
+        if base_model in model_costs:
+            base_cost_config[base_model] = model_costs[base_model]
+        else:
+            st.sidebar.warning(
+                f"No cost data found for base model: {base_model}. Using zeros for its variants."
+            )
+            base_cost_config[base_model] = _make_zero_cost_config()
+
+    # Main mapping used by cost calculation: every evaluated model key resolves to its
+    # base model pricing, with optional user overrides applied at the base level.
+    base_user_cost_override: dict[str, Dict] = {}
 
     with st.sidebar.expander("Edit Model Costs (per 1M tokens)", expanded=False):
-        for model in available_models:
-            if model in model_costs:
-                cost_config[model] = model_costs[model]
-            else:
-                st.warning(f"No cost data found for model: {model}. Using zeros.")
-                cost_config[model] = {
-                    "input": [{"up_to": float("inf"), "price": 0.0}],
-                    "output": {"default": [{"up_to": float("inf"), "price": 0.0}]},
-                }
-
+        st.markdown(
+            "Costs are configured per **base model**. Any reasoning-effort variants "
+            "(e.g. `(low)`, `(medium)`, `(xhigh)`) inherit the base pricing."
+        )
         st.markdown("---")
-        st.markdown("Override costs below (optional, simplified):")
+        st.markdown("Override base model costs below (optional, simplified):")
 
-        for model in available_models:
+        for base_model in base_models:
+            variants = sorted(m for m in base_to_models[base_model] if m != base_model)
+            if variants:
+                st.caption(f"Variants (inherited): {', '.join(variants)}")
+
             cols = st.columns(2)
-            default_input = (
-                cost_config.get(model, {}).get("input", [{}])[0].get("price", 0.0)
-            )
-            output_pricing = cost_config.get(model, {}).get("output", {})
+
+            base_costs = base_cost_config.get(base_model) or _make_zero_cost_config()
+            default_input = base_costs.get("input", [{}])[0].get("price", 0.0)
+
+            output_pricing = base_costs.get("output", {})
             if "default" in output_pricing:
                 default_output = output_pricing["default"][0].get("price", 0.0)
             elif "non_thinking" in output_pricing:
@@ -939,31 +1117,35 @@ def main() -> None:
                 default_output = 0.0
 
             input_cost = cols[0].number_input(
-                f"{model} Input",
+                f"{base_model} Input",
                 value=float(default_input),
                 step=0.01,
                 format="%.4f",
-                key=f"{model}_input_cost",
+                key=f"{base_model}_input_cost",
             )
             output_cost = cols[1].number_input(
-                f"{model} Output",
+                f"{base_model} Output",
                 value=float(default_output),
                 step=0.01,
                 format="%.4f",
-                key=f"{model}_output_cost",
+                key=f"{base_model}_output_cost",
             )
 
             if input_cost != default_input or output_cost != default_output:
-                user_cost_override[model] = {
+                base_user_cost_override[base_model] = {
                     "input": [{"up_to": float("inf"), "price": input_cost}],
                     "output": {
                         "default": [{"up_to": float("inf"), "price": output_cost}]
                     },
                 }
 
-    # Apply overrides
-    final_cost_config = cost_config.copy()
-    final_cost_config.update(user_cost_override)
+    # Build the final config keyed by the exact model IDs found in the results
+    final_cost_config = {}
+    for model in available_models:
+        base_model = model_to_base[model]
+        final_cost_config[model] = base_user_cost_override.get(
+            base_model, base_cost_config[base_model]
+        )
 
     # Apply model filter before processing data
     df_model_filtered = df_initial[df_initial["Model"].isin(selected_models)]
@@ -1023,7 +1205,10 @@ def main() -> None:
                     "Avg Duration (s)", format="%.2fs"
                 ),
                 "Avg Total Tokens": st.column_config.NumberColumn(
-                    "Avg Total Tokens", format="%.0f"
+                    "Avg Total Tokens (input + output)", format="%.0f"
+                ),
+                "Avg Requests": st.column_config.NumberColumn(
+                    "Avg Requests", format="%.0f"
                 ),
             },
             use_container_width=True,
@@ -1036,8 +1221,12 @@ def main() -> None:
     x_axis_mode = st.radio(
         "Compare performance against:",
         list(pareto_config.x_axis_options.keys()),
-        format_func=lambda x: x.capitalize(),
+        format_func=lambda key: pareto_config.x_axis_options[key].label,
         horizontal=True,
+        help=(
+            "Output tokens are response + thinking. "
+            "Leaderboard totals also include request tokens."
+        ),
     )
     st.plotly_chart(
         create_pareto_frontier_plot(

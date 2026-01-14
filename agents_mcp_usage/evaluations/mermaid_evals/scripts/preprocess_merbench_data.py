@@ -1,18 +1,52 @@
 #!/usr/bin/env python3
-import pandas as pd
-import json
-import sys
 import argparse
+import json
+import re
+import sys
 from datetime import datetime
 from pathlib import Path
-from typing import Dict, List, Any
+from typing import Any, Dict, List
+
+import pandas as pd
 
 # Add parent directory to path to import modules
 sys.path.append(str(Path(__file__).parent.parent))
 
 from agents_mcp_usage.evaluations.mermaid_evals.dashboard_config import DEFAULT_CONFIG
 from agents_mcp_usage.evaluations.mermaid_evals.schemas import DashboardConfig
+from agents_mcp_usage.evaluations.mermaid_evals.evals_pydantic_mcp import (
+    REQUEST_USAGE_COLUMN,
+)
 from agents_mcp_usage.utils import get_project_root
+
+
+# NOTE: Reasoning-effort suffixes (e.g. "(medium)", "(none)") do not change token prices.
+# Keep in sync with `agents_mcp_usage.factory.model_factory.extract_reasoning_effort`.
+REASONING_SUFFIX_RE = re.compile(
+    r"\s*\((low|medium|high|none|minimal|xhigh)\)\s*$", re.IGNORECASE
+)
+
+
+def normalize_model_name(model_name: Any) -> Any:
+    """Normalize model names for cost lookup.
+
+    - Strip trailing reasoning hints like "(medium)".
+    - Map OpenAI Responses provider prefix to the standard OpenAI key used in costs.json.
+    - Add an "openai:" prefix for bare GPT model names.
+    """
+
+    if not isinstance(model_name, str):
+        return model_name
+
+    name = model_name.strip()
+    name = REASONING_SUFFIX_RE.sub("", name).strip()
+
+    if name.startswith("openai-responses:"):
+        name = "openai:" + name.split(":", 1)[1]
+    elif name.startswith("gpt-") and ":" not in name:
+        name = f"openai:{name}"
+
+    return name
 
 def load_model_costs(file_path: Path) -> Dict[str, Any]:
     """Load model costs from JSON file."""
@@ -63,8 +97,9 @@ def calculate_costs(df: pd.DataFrame, cost_config: Dict, config: DashboardConfig
             continue
             
         model = row.get("Model")
-        model_costs = cost_config.get(model)
-        
+        model_key = normalize_model_name(model)
+        model_costs = cost_config.get(model_key)
+
         if not model_costs:
             continue
             
@@ -159,11 +194,20 @@ def process_csv_for_static_site(csv_path):
     # Read CSV
     df = pd.read_csv(csv_path)
     
-    # Replace NaN values with 0 for numeric columns
-    numeric_columns = ['Metric_request_tokens', 'Metric_response_tokens', 'Metric_total_tokens']
-    for col in numeric_columns:
-        if col in df.columns:
-            df[col] = df[col].fillna(0)
+    if REQUEST_USAGE_COLUMN not in df.columns:
+        df[REQUEST_USAGE_COLUMN] = "na"
+    df[REQUEST_USAGE_COLUMN] = df[REQUEST_USAGE_COLUMN].fillna("na")
+    
+    # Normalize token columns so missing usage is treated as 0 and types are numeric.
+    cost_calc_config = config.cost_calculation
+    input_token_cols = cost_calc_config.input_token_cols
+    output_token_cols = cost_calc_config.output_token_cols
+    token_cols = input_token_cols + output_token_cols
+
+    for col in token_cols:
+        if col not in df.columns:
+            df[col] = 0
+        df[col] = pd.to_numeric(df[col], errors="coerce").fillna(0)
     
     # Extract grouping column (test case types)
     df['test_group'] = df['Case'].apply(lambda x: x.split('_')[-1] if '_' in x else 'other')
@@ -176,27 +220,61 @@ def process_csv_for_static_site(csv_path):
     else:
         df["thinking_tokens"] = 0
         df["text_tokens"] = 0
-    
-    # Calculate total tokens
-    df["total_tokens"] = df["Metric_total_tokens"].fillna(0)
+
+    df["thinking_tokens"] = pd.to_numeric(df["thinking_tokens"], errors="coerce").fillna(0)
+    df["text_tokens"] = pd.to_numeric(df["text_tokens"], errors="coerce").fillna(0)
+
+    # Calculate total tokens in the same way as the local Streamlit dashboard:
+    # sum of input + output token columns (including thinking tokens).
+    df["total_tokens"] = 0
+    for col in token_cols:
+        df[col] = pd.to_numeric(df[col], errors="coerce").fillna(0)
+        df["total_tokens"] += df[col]
     
     # Calculate success rate (primary metric)
     df["Success_Rate"] = df["Score_MermaidDiagramValid"] * 100
     
     # Extract provider from model name
-    def extract_provider(model_name):
-        if model_name.startswith("gemini-"):
+    def extract_provider(model_name: str) -> str:
+        name = str(model_name)
+
+        if name.startswith("openrouter:"):
+            openrouter_id = name.split(":", 1)[1]
+            provider_id = (
+                openrouter_id.split("/", 1)[0] if "/" in openrouter_id else openrouter_id
+            )
+            provider_key = provider_id.strip().lower()
+
+            provider_map = {
+                "amazon": "Amazon",
+                "anthropic": "Anthropic",
+                "cohere": "Cohere",
+                "deepseek": "DeepSeek",
+                "google": "Google",
+                "meta-llama": "Meta",
+                "mistralai": "Mistral",
+                "moonshotai": "MoonshotAI",
+                "openai": "OpenAI",
+                "qwen": "Qwen",
+                "x-ai": "xAI",
+            }
+            if provider_key in provider_map:
+                return provider_map[provider_key]
+
+            fallback = provider_id.replace("-", " ").replace("_", " ").strip()
+            return fallback.title() if fallback else "OpenRouter"
+
+        if name.startswith("gemini-"):
             return "Google"
-        elif "nova" in model_name.lower():
+        if "nova" in name.lower():
             return "Amazon"
-        elif "claude" in model_name.lower():
+        if "claude" in name.lower():
             return "Anthropic"
-        elif "gpt" in model_name.lower():
+        if "gpt" in name.lower():
             return "OpenAI"
-        elif model_name.startswith("o"):
+        if name.startswith("o"):
             return "OpenAI"
-        else:
-            return "Other"
+        return "Other"
     
     df["provider"] = df["Model"].apply(extract_provider)
     
