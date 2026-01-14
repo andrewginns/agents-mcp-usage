@@ -20,7 +20,11 @@ from agents_mcp_usage.evaluations.mermaid_evals.evals_pydantic_mcp import (
 from agents_mcp_usage.utils import get_project_root
 
 
-REASONING_SUFFIX_RE = re.compile(r"\s*\((low|medium|high)\)\s*$", re.IGNORECASE)
+# NOTE: Reasoning-effort suffixes (e.g. "(medium)", "(none)") do not change token prices.
+# Keep in sync with `agents_mcp_usage.factory.model_factory.extract_reasoning_effort`.
+REASONING_SUFFIX_RE = re.compile(
+    r"\s*\((low|medium|high|none|minimal|xhigh)\)\s*$", re.IGNORECASE
+)
 
 
 def normalize_model_name(model_name: Any) -> Any:
