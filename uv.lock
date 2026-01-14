@@ -1,5 +1,5 @@
 version = 1
-revision = 2
+revision = 3
 requires-python = ">=3.13"
 resolution-markers = [
     "python_full_version >= '3.14'",
@@ -2441,7 +2441,7 @@ requires-dist = [
     { name = "openai-agents", specifier = ">=0.0.12" },
     { name = "pandas", specifier = ">=2.3.0" },
     { name = "plotly", specifier = ">=6.1.2" },
-    { name = "pydantic-ai-slim", extras = ["bedrock", "mcp"], specifier = ">=1.0.17" },
+    { name = "pydantic-ai-slim", extras = ["bedrock", "mcp", "openrouter"], specifier = ">=1.0.17" },
     { name = "pydantic-evals", extras = ["logfire"], specifier = ">=1.0.17" },
     { name = "python-dotenv", specifier = ">=1.1.0" },
     { name = "ruff", specifier = ">=0.11.10" },

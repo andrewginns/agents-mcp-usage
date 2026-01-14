@@ -122,7 +122,6 @@ def merge_raw_data(
 
         # Identify numeric vs non-numeric columns
         numeric_cols = df_all.select_dtypes(include="number").columns.tolist()
-        non_numeric_cols = [c for c in df_all.columns if c not in numeric_cols]
 
         agg_dict = {}
         for col in df_all.columns:

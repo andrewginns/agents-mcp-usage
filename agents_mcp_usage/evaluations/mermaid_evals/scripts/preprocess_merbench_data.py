@@ -14,6 +14,9 @@ sys.path.append(str(Path(__file__).parent.parent))
 
 from agents_mcp_usage.evaluations.mermaid_evals.dashboard_config import DEFAULT_CONFIG
 from agents_mcp_usage.evaluations.mermaid_evals.schemas import DashboardConfig
+from agents_mcp_usage.evaluations.mermaid_evals.evals_pydantic_mcp import (
+    REQUEST_USAGE_COLUMN,
+)
 from agents_mcp_usage.utils import get_project_root
 
 
@@ -187,6 +190,10 @@ def process_csv_for_static_site(csv_path):
     # Read CSV
     df = pd.read_csv(csv_path)
     
+    if REQUEST_USAGE_COLUMN not in df.columns:
+        df[REQUEST_USAGE_COLUMN] = "na"
+    df[REQUEST_USAGE_COLUMN] = df[REQUEST_USAGE_COLUMN].fillna("na")
+    
     # Normalize token columns so missing usage is treated as 0 and types are numeric.
     cost_calc_config = config.cost_calculation
     input_token_cols = cost_calc_config.input_token_cols
@@ -224,19 +231,46 @@ def process_csv_for_static_site(csv_path):
     df["Success_Rate"] = df["Score_MermaidDiagramValid"] * 100
     
     # Extract provider from model name
-    def extract_provider(model_name):
-        if model_name.startswith("gemini-"):
+    def extract_provider(model_name: str) -> str:
+        name = str(model_name)
+
+        if name.startswith("openrouter:"):
+            openrouter_id = name.split(":", 1)[1]
+            provider_id = (
+                openrouter_id.split("/", 1)[0] if "/" in openrouter_id else openrouter_id
+            )
+            provider_key = provider_id.strip().lower()
+
+            provider_map = {
+                "amazon": "Amazon",
+                "anthropic": "Anthropic",
+                "cohere": "Cohere",
+                "deepseek": "DeepSeek",
+                "google": "Google",
+                "meta-llama": "Meta",
+                "mistralai": "Mistral",
+                "moonshotai": "MoonshotAI",
+                "openai": "OpenAI",
+                "qwen": "Qwen",
+                "x-ai": "xAI",
+            }
+            if provider_key in provider_map:
+                return provider_map[provider_key]
+
+            fallback = provider_id.replace("-", " ").replace("_", " ").strip()
+            return fallback.title() if fallback else "OpenRouter"
+
+        if name.startswith("gemini-"):
             return "Google"
-        elif "nova" in model_name.lower():
+        if "nova" in name.lower():
             return "Amazon"
-        elif "claude" in model_name.lower():
+        if "claude" in name.lower():
             return "Anthropic"
-        elif "gpt" in model_name.lower():
+        if "gpt" in name.lower():
             return "OpenAI"
-        elif model_name.startswith("o"):
+        if name.startswith("o"):
             return "OpenAI"
-        else:
-            return "Other"
+        return "Other"
     
     df["provider"] = df["Model"].apply(extract_provider)
     

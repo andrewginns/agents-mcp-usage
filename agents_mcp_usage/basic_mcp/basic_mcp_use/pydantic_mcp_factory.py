@@ -12,7 +12,6 @@ Supported model formats:
 
 import asyncio
 import argparse
-import os
 from typing import Optional
 
 import logfire

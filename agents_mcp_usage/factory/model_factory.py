@@ -15,9 +15,14 @@ from pydantic_ai.profiles.openai import OpenAIModelProfile
 from pydantic_ai.providers.openai import OpenAIProvider
 
 
-# Providers that PydanticAI handles natively with provider:model syntax
+# Providers that PydanticAI handles natively with provider:model syntax.
+#
+# NOTE:
+# - `openrouter:*` is intentionally **not** treated as native in this repo.
+#   We construct an explicit OpenRouter provider + OpenAI-compatible model so we
+#   can control configuration and avoid relying on implicit provider detection.
 NATIVE_PROVIDERS = {
-    "deepseek", "openrouter", "github", "grok", "azure",
+    "deepseek", "github", "grok", "azure",
     "fireworks", "together", "heroku"
 }
 
@@ -46,6 +51,16 @@ PROVIDER_CONFIGS = {
         "handler": "openai_compatible_handler",
         "base_url": "https://api.perplexity.ai",
         "env_var": "PERPLEXITY_API_KEY"
+    },
+    "openrouter": {
+        # OpenRouter has first-class support in PydanticAI, but we construct the
+        # provider/model explicitly so configuration is controlled by this repo.
+        "handler": "openrouter_handler",
+        "env_var": "OPENROUTER_API_KEY",
+        "env_vars": {
+            "app_url": "OPENROUTER_APP_URL",
+            "app_title": "OPENROUTER_APP_TITLE",
+        },
     }
 }
 
@@ -73,11 +88,12 @@ def ensure_openai_responses_model(model_string: str) -> str:
     return model_string
 
 
-REASONING_SUFFIX_RE = re.compile(r"\s*\((low|medium|high)\)\s*$", re.IGNORECASE)
+# Accept optional reasoning hints for models that support it
+REASONING_SUFFIX_RE = re.compile(r"\s*\((low|medium|high|none|minimal|xhigh)\)\s*$", re.IGNORECASE)
 
 
 def extract_reasoning_effort(model_string: str) -> tuple[str, Optional[str]]:
-    """Strip trailing reasoning hint like "(medium)" from model string.
+    """Strip trailing reasoning hint like "(medium)" or "(none)" from model string.
 
     Returns the base model string and the effort level (lowercased) if present.
     """
@@ -184,6 +200,120 @@ def handle_openai_compatible(
         )
 
 
+def handle_openrouter_model(
+    model_name: str,
+    provider_kwargs: Optional[Dict[str, Any]] = None,
+) -> Model:
+    """Handle OpenRouter models via an explicit provider/model.
+
+    PydanticAI can accept `openrouter:<model-id>` strings directly, but we build
+    the provider/model explicitly so this repository owns configuration and can
+    support optional app attribution.
+    """
+
+    # Import lazily so users without the optional dependency can still import
+    # the rest of the repo.
+    #
+    # NOTE: In pydantic-ai-slim==1.17.x, OpenRouter uses the OpenAI-compatible
+    # models (Chat Completions) with an `OpenRouterProvider`, rather than a
+    # dedicated `OpenRouterModel` class.
+    import json
+
+    from openai import AsyncOpenAI
+    from openai.types import chat
+    from pydantic import ValidationError
+    from pydantic_ai.models.openai import OpenAIChatModel
+    from pydantic_ai.providers.openrouter import OpenRouterProvider
+
+    class OpenRouterPatchedChatModel(OpenAIChatModel):
+        """OpenAIChatModel with OpenRouter response sanitation.
+
+        Some OpenRouter-backed models (notably Anthropic) occasionally return
+        invalid tool-call payloads such as `function.arguments = null`. PydanticAI
+        validates the OpenAI response strictly, which raises
+        `UnexpectedModelBehavior` before tool execution can happen.
+
+        We patch the raw ChatCompletion dict prior to Pydantic validation.
+        """
+
+        def _process_response(self, response: chat.ChatCompletion | str):  # type: ignore[override]
+            if isinstance(response, chat.ChatCompletion):
+                data = response.model_dump()
+
+                # Fix invalid tool_calls payloads (e.g. `arguments: null`)
+                try:
+                    choices = data.get("choices")
+                    if isinstance(choices, list):
+                        for choice in choices:
+                            if not isinstance(choice, dict):
+                                continue
+                            message = choice.get("message")
+                            if not isinstance(message, dict):
+                                continue
+                            tool_calls = message.get("tool_calls")
+                            if not isinstance(tool_calls, list):
+                                continue
+                            for call in tool_calls:
+                                if not isinstance(call, dict):
+                                    continue
+                                if call.get("type") != "function":
+                                    continue
+                                fn = call.get("function")
+                                if not isinstance(fn, dict):
+                                    fn = {}
+                                    call["function"] = fn
+                                args = fn.get("arguments")
+                                if args is None:
+                                    fn["arguments"] = "{}"
+                                elif not isinstance(args, str):
+                                    fn["arguments"] = json.dumps(args)
+                except Exception:
+                    # Best-effort only; fall through to default handling.
+                    pass
+
+                try:
+                    response = chat.ChatCompletion.model_validate(data)
+                except ValidationError:
+                    # If sanitation didn't help, let the base model raise a
+                    # helpful UnexpectedModelBehavior.
+                    pass
+
+            return super()._process_response(response)
+
+    config = PROVIDER_CONFIGS["openrouter"]
+    provider_kwargs = provider_kwargs or {}
+
+    api_key = provider_kwargs.get("api_key") or os.getenv(config["env_var"])
+    if not api_key:
+        raise ValueError(
+            "OpenRouter API key not configured. "
+            "Set OPENROUTER_API_KEY or pass provider_kwargs={'api_key': '...'}"
+        )
+
+    app_url = provider_kwargs.get("app_url") or os.getenv(config["env_vars"]["app_url"])
+    app_title = provider_kwargs.get("app_title") or os.getenv(config["env_vars"]["app_title"])
+
+    # OpenRouter app attribution uses HTTP headers:
+    # - HTTP-Referer: your app URL
+    # - X-Title: your app name
+    # See: https://openrouter.ai/docs/app-attribution
+    default_headers: dict[str, str] = {}
+    if app_url:
+        default_headers["HTTP-Referer"] = app_url
+    if app_title:
+        default_headers["X-Title"] = app_title
+
+    base_url = provider_kwargs.get("base_url") or "https://openrouter.ai/api/v1"
+    openai_client = AsyncOpenAI(
+        base_url=base_url,
+        api_key=api_key,
+        default_headers=default_headers or None,
+    )
+    provider_instance = OpenRouterProvider(openai_client=openai_client)
+
+    return OpenRouterPatchedChatModel(model_name, provider=provider_instance)
+
+
 def create_model(
     model_string: str,
     model_settings: Optional[Dict[str, Any]] = None,
@@ -242,6 +372,8 @@ def create_model(
             return handle_bedrock_model(model_name, provider_kwargs)
         elif handler == "openai_compatible_handler":
             return handle_openai_compatible(provider, model_name, provider_kwargs)
+        elif handler == "openrouter_handler":
+            return handle_openrouter_model(model_name, provider_kwargs)
     
     # Unknown provider - return string and let PydanticAI try
     return model_string

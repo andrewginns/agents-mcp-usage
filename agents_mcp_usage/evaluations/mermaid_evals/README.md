@@ -64,8 +64,9 @@ The evaluation system uses Pydantic-AI and requires environment variables for AP
 # Required for most models
 export GEMINI_API_KEY="your-key-here"
 
-# Optional for specific models
+# Optional for specific providers/models
 export OPENAI_API_KEY="your-key-here"
+export OPENROUTER_API_KEY="your-key-here"  # required for `openrouter:*` models
 ```
 
 ## Quick Start Guide
@@ -80,6 +81,12 @@ uv run agents_mcp_usage/evaluations/mermaid_evals/evals_pydantic_mcp.py
 ```bash
 # Run evaluation across multiple models in parallel
 uv run agents_mcp_usage/evaluations/mermaid_evals/run_multi_evals.py
+
+# Example: include an OpenRouter model (requires OPENROUTER_API_KEY)
+uv run agents_mcp_usage/evaluations/mermaid_evals/run_multi_evals.py \
+  --models "openrouter:anthropic/claude-3.7-sonnet,gemini-3-flash-preview" \
+  --runs 5 \
+  --sequential
 ```
 
 ### 3. View Results in Local Dashboard (Recommended)
@@ -370,11 +377,70 @@ uv run agents_mcp_usage/evaluations/mermaid_evals/scripts/merge_benchmark_result
 
 ## Monitoring & Debugging
 
+### Logfire (remote, if configured)
+
 All evaluation runs are traced with **Logfire** for comprehensive monitoring:
 - Tool call traces
 - Retry attempts and reasons
 - Execution durations
 - Categorised failure analysis
+
+### Local per-case debug traces (JSON)
+
+When diagnosing failure modes across models (e.g. tool-call loops, request/turn limits, redundant tool usage), you can enable a local debug mode that writes a detailed per-case trace JSON file for each model attempt.
+
+Enable traces:
+
+```bash
+uv run agents_mcp_usage/evaluations/mermaid_evals/run_multi_evals.py \
+  --runs 1 \
+  --sequential \
+  --debug-traces
+```
+
+Optional: choose where traces are written:
+
+```bash
+uv run agents_mcp_usage/evaluations/mermaid_evals/run_multi_evals.py \
+  --runs 1 \
+  --sequential \
+  --debug-traces \
+  --trace-dir ./mermaid_eval_results/debug_traces
+```
+
+By default, the trace directory is:
+
+- `<output-dir>/debug_traces/` (where `<output-dir>` defaults to `./mermaid_eval_results`)
+
+#### Output layout
+
+Traces are stored under a per-model subdirectory:
+
+```text
+<trace-dir>/
+  <model_slug>/
+    model=<model_slug>__run###__attempt###__case=<case_slug>.json
+```
+
+> `run###` is the planned run number (1-based), `attempt###` is the runner-level retry attempt (1-based), and `case_slug` is derived from the case name (or a hash of the input if absent).
+
+#### What gets captured
+
+Each trace JSON file includes (at minimum):
+
+- input: invalid diagram + hash + case name
+- prompt query sent to the agent
+- full message history (including tool call args and tool return payloads)
+- derived message summary:
+  - request count, response count
+  - tool call/return counts
+  - tool name sequence (helps spot loops)
+- usage limits used for the run
+- usage/tokens (when available from the provider)
+- output text and extracted mermaid diagram (on success)
+- exception metadata and traceback (on failures)
+
+**Important:** traces contain full prompts and full tool return payloads. Treat them as sensitive and avoid sharing publicly.
 
 ## Troubleshooting
 

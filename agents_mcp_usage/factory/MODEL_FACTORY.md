@@ -4,7 +4,7 @@ The model factory pattern provides a centralized way to create models across dif
 
 ## Overview
 
-The model factory (`agents_mcp_usage/utils/model_factory.py`) replaces manual string parsing with a configuration-driven approach that:
+The model factory (`agents_mcp_usage/factory/model_factory.py`) replaces manual string parsing with a configuration-driven approach that:
 
 - Supports 13+ providers out of the box
 - Leverages PydanticAI's native provider detection
@@ -16,7 +16,7 @@ The model factory (`agents_mcp_usage/utils/model_factory.py`) replaces manual st
 ### Basic Usage
 
 ```python
-from agents_mcp_usage.utils.model_factory import create_agent
+from agents_mcp_usage.factory.model_factory import create_agent
 
 # Using provider:model format
 agent = create_agent(
@@ -67,6 +67,38 @@ These providers use the OpenAI API format with custom endpoints:
 | OpenRouter | `OPENROUTER_API_KEY` | `openrouter:anthropic/claude-3.5-sonnet` |
 | Perplexity | `PERPLEXITY_API_KEY` | `perplexity:sonar-pro` |
 | Ollama | None (local) | `ollama:llama3.2` |
+
+### OpenRouter (explicit provider handling)
+
+This repo intentionally constructs an explicit OpenRouter provider/model for `openrouter:*` model strings, rather than relying on PydanticAI's implicit provider detection.
+
+Implementation details:
+- `openrouter:<provider>/<model>` is parsed by [`parse_model_string()`](agents_mcp_usage/factory/model_factory.py:110) and handled in [`create_model()`](agents_mcp_usage/factory/model_factory.py:258) via the OpenRouter handler.
+- The handler builds an OpenAI-compatible client pointed at `https://openrouter.ai/api/v1` and wraps it in PydanticAI's [`OpenRouterProvider`](agents_mcp_usage/factory/model_factory.py:222).
+
+#### App attribution (optional)
+
+OpenRouter supports attribution via headers.
+
+Set these environment variables (optional):
+
+```bash
+export OPENROUTER_APP_URL="https://your-app.com"   # sent as HTTP-Referer
+export OPENROUTER_APP_TITLE="Your App"            # sent as X-Title
+```
+
+Or pass overrides via `provider_kwargs`:
+
+```python
+agent = create_agent(
+    model="openrouter:anthropic/claude-3.5-sonnet",
+    provider_kwargs={
+        "api_key": "...",
+        "app_url": "https://your-app.com",
+        "app_title": "Your App",
+    },
+)
+```
 
 ### Cloud Providers
 
@@ -149,7 +181,7 @@ PROVIDER_CONFIGS = {
 ## Example: Multi-Provider Comparison
 
 ```python
-from agents_mcp_usage.utils.model_factory import create_agent
+from agents_mcp_usage.factory.model_factory import create_agent
 
 models = [
     "gemini-2.5-pro",
@@ -177,12 +209,14 @@ export GEMINI_API_KEY="..."
 export OPENAI_API_KEY="..."
 export ANTHROPIC_API_KEY="..."
 
-# Extended providers
-export DEEPSEEK_API_KEY="..."
-export OPENROUTER_API_KEY="..."
-export GITHUB_API_KEY="..."
-export XAI_API_KEY="..."
-export PERPLEXITY_API_KEY="..."
+ # Extended providers
+ export DEEPSEEK_API_KEY="..."
+ export OPENROUTER_API_KEY="..."
+ export OPENROUTER_APP_URL="..."   # optional (app attribution)
+ export OPENROUTER_APP_TITLE="..." # optional (app attribution)
+ export GITHUB_API_KEY="..."
+ export XAI_API_KEY="..."
+ export PERPLEXITY_API_KEY="..."
 
 # AWS Bedrock
 export AWS_REGION="us-east-1"
@@ -210,7 +244,7 @@ if model.startswith("bedrock:"):
 
 ### New Approach
 ```python
-from agents_mcp_usage.utils.model_factory import create_agent
+from agents_mcp_usage.factory.model_factory import create_agent
 
 agent = create_agent(
     model="bedrock:us.amazon.nova-pro-v1:0",

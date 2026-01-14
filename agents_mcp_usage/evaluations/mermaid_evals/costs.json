@@ -300,6 +300,23 @@
         ]
       }
     },
+    "gemini-3-flash-preview": {
+      "friendly_name": "Gemini 3 Flash Preview",
+      "input": [
+        {
+          "up_to": "inf",
+          "price": 0.5
+        }
+      ],
+      "output": {
+        "default": [
+          {
+            "up_to": "inf",
+            "price": 3.0
+          }
+        ]
+      }
+    },
     "gemini-2.5-flash": {
       "friendly_name": "Gemini 2.5 Flash",
       "input": [
@@ -357,8 +374,8 @@
         ]
       }
     },
-    "gemini-2.5-flash-lite": {
-      "friendly_name": "Gemini 2.5 Flash Lite",
+    "gemini-2.5-flash-lite-preview-09-25": {
+      "friendly_name": "Gemini 2.5 Flash Lite Preview (Sep)",
       "input": [
         {
           "up_to": "inf",
@@ -374,8 +391,8 @@
         ]
       }
     },
-    "gemini-2.5-flash-lite-preview-09-2025": {
-      "friendly_name": "Gemini 2.5 Flash Lite Preview (Sept)",
+    "gemini-2.5-flash-lite": {
+      "friendly_name": "Gemini 2.5 Flash Lite",
       "input": [
         {
           "up_to": "inf",
@@ -533,6 +550,11 @@
       "input": [{"up_to": "inf", "price": 1.25}],
       "output": {"default": [{"up_to": "inf", "price": 10.0}]}
     },
+    "openai:gpt-5.1-codex-max": {
+      "friendly_name": "GPT-5.1 Codex Max",
+      "input": [{"up_to": "inf", "price": 1.25}],
+      "output": {"default": [{"up_to": "inf", "price": 10.0}]}
+    },
     "openai:gpt-5.1-codex-mini": {
       "friendly_name": "GPT-5.1 Codex Mini",
       "input": [{"up_to": "inf", "price": 0.25}],
@@ -542,6 +564,16 @@
       "friendly_name": "GPT-5 Search API",
       "input": [{"up_to": "inf", "price": 1.25}],
       "output": {"default": [{"up_to": "inf", "price": 10.0}]}
+    },
+    "openai:gpt-5.2": {
+      "friendly_name": "GPT-5.2",
+      "input": [{"up_to": "inf", "price": 1.75}],
+      "output": {"default": [{"up_to": "inf", "price": 14.0}]}
+    },
+    "openai:gpt-5.2-codex": {
+      "friendly_name": "GPT-5.2 Codex",
+      "input": [{"up_to": "inf", "price": 1.75}],
+      "output": {"default": [{"up_to": "inf", "price": 14.0}]}
     },
     "bedrock:us.anthropic.claude-sonnet-4-20250514-v1:0": {
       "friendly_name": "Claude 4 Sonnet",
@@ -692,6 +724,48 @@
           {
             "up_to": "inf",
             "price": 12.50
+          }
+        ]
+      }
+    },
+    "openrouter:anthropic/claude-sonnet-4.5": {
+      "friendly_name": "Claude Sonnet 4.5",
+      "input": [
+        {
+          "up_to": 200000,
+          "price": 3.0
+        },
+        {
+          "up_to": "inf",
+          "price": 6.0
+        }
+      ],
+      "output": {
+        "default": [
+          {
+            "up_to": 200000,
+            "price": 15.0
+          },
+          {
+            "up_to": "inf",
+            "price": 22.5
+          }
+        ]
+      }
+    },
+    "openrouter:anthropic/claude-opus-4.5": {
+      "friendly_name": "Claude Opus 4.5",
+      "input": [
+        {
+          "up_to": "inf",
+          "price": 5.0
+        }
+      ],
+      "output": {
+        "default": [
+          {
+            "up_to": "inf",
+            "price": 25.0
           }
         ]
       }
