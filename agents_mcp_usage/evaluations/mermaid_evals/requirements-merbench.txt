@@ -1,0 +1,11 @@
+# Minimal, pinned dependencies required to run Merbench inside Docker.
+# These pins come from uv.lock but exclude heavy optional stacks (e.g. pandas,
+# streamlit, langchain) that pull in numpy wheels not available on all Linux
+# architectures.
+
+logfire==4.14.2
+python-dotenv==1.2.1
+mcp==1.21.1
+pydantic-ai-slim[bedrock,mcp,openai]==1.17.0
+pydantic-evals[logfire]==1.17.0
+rich==14.2.0

@@ -1,0 +1,25 @@
+.git
+.gitignore
+.venv
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+*.log
+.DS_Store
+
+# Local environment files
+.env
+
+# Benchmark outputs
+mermaid_eval_results/
+agents_mcp_usage/evaluations/mermaid_evals/results/
+
+# Editor / tooling caches
+.ruff_cache/
+.mypy_cache/
+.pytest_cache/
+
+# Large docs/assets that are not needed to run benchmarks
+docs/
+

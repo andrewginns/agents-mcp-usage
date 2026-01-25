@@ -232,6 +232,15 @@ uv run agents_mcp_usage/evaluations/mermaid_evals/evals_pydantic_mcp.py
 # Run multi-model benchmarking
 uv run agents_mcp_usage/evaluations/mermaid_evals/run_multi_evals.py --models "gemini-2.5-pro-preview-06-05,gemini-2.0-flash" --runs 5 --parallel
 
+# Dockerized benchmark for a single model (builds the image automatically)
+make benchmark MODEL="openai:gpt-5.1 (none)" RUNS=5 PARALLEL=1
+
+# Dockerized dry run (no API calls; useful for smoke tests)
+make benchmark-dry-run MODEL="openai:gpt-5.1 (none)"
+
+# Note: the Docker image installs benchmark-only dependencies.
+# Run other demos/dashboards from your local environment.
+
 # Launch the evaluation dashboard
 uv run streamlit run agents_mcp_usage/evaluations/mermaid_evals/merbench_ui.py
 ```
@@ -267,6 +276,9 @@ The included Streamlit dashboard (`merbench_ui.py`) provides:
 ```bash
 # Single model evaluation
 uv run agents_mcp_usage/evaluations/mermaid_evals/evals_pydantic_mcp.py
+
+# Dockerized single-model benchmark (isolated dependencies)
+make benchmark MODEL="openai:gpt-5.1 (none)" RUNS=5 PARALLEL=1
 
 # Multi-model parallel benchmarking
 uv run agents_mcp_usage/evaluations/mermaid_evals/run_multi_evals.py \

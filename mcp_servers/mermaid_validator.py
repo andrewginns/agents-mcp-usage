@@ -3,6 +3,8 @@ import tempfile
 import subprocess
 import base64
 import json
+import shutil
+from pathlib import Path
 from typing import Optional
 from pydantic import BaseModel, Field
 from dotenv import load_dotenv
@@ -23,6 +25,32 @@ class MermaidValidationResult(BaseModel):
     diagram_image: Optional[str] = Field(
         None, description="Base64-encoded PNG image of the rendered diagram if valid"
     )
+
+
+def _detect_chromium_executable() -> Optional[str]:
+    """Best-effort detection of a Chromium/Chrome executable path.
+
+    This prefers:
+    1. PUPPETEER_EXECUTABLE_PATH if provided
+    2. Playwright's bundled Chromium in /ms-playwright
+    3. Common system browser names on PATH
+    """
+    env_path = os.getenv("PUPPETEER_EXECUTABLE_PATH")
+    if env_path and os.path.exists(env_path):
+        return env_path
+
+    playwright_root = Path("/ms-playwright")
+    if playwright_root.exists():
+        candidates = sorted(playwright_root.glob("chromium-*/chrome-linux/chrome"))
+        if candidates:
+            return str(candidates[-1])
+
+    for browser_name in ("chromium", "chromium-browser", "google-chrome", "chrome"):
+        browser_path = shutil.which(browser_name)
+        if browser_path:
+            return browser_path
+
+    return None
 
 
 @mcp.tool()
@@ -56,14 +84,28 @@ async def validate_mermaid_diagram(diagram_text: str) -> MermaidValidationResult
         output_file_name = output_file.name
 
         puppeteer_config = {"args": ["--no-sandbox", "--disable-setuid-sandbox"]}
+        chromium_executable = _detect_chromium_executable()
+        if chromium_executable:
+            puppeteer_config["executablePath"] = chromium_executable
         with tempfile.NamedTemporaryFile(
             suffix=".json", mode="w", delete=False
         ) as config_file:
             json.dump(puppeteer_config, config_file)
             puppeteer_config_path = config_file.name
 
-        result = subprocess.run(
-            [
+        mmdc_path = shutil.which("mmdc")
+        if mmdc_path:
+            command = [
+                mmdc_path,
+                "-i",
+                temp_file_path,
+                "-o",
+                output_file_name,
+                "--puppeteerConfigFile",
+                puppeteer_config_path,
+            ]
+        else:
+            command = [
                 "npx",
                 "-y",
                 "@mermaid-js/mermaid-cli@11.4.2",
@@ -73,10 +115,9 @@ async def validate_mermaid_diagram(diagram_text: str) -> MermaidValidationResult
                 output_file_name,
                 "--puppeteerConfigFile",
                 puppeteer_config_path,
-            ],
-            capture_output=True,
-            text=True,
-        )
+            ]
+
+        result = subprocess.run(command, capture_output=True, text=True)
 
         if result.returncode == 0:
             with open(output_file_name, "rb") as f:

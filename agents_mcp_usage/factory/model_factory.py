@@ -40,11 +40,23 @@ PROVIDER_CONFIGS = {
         # Ollama is OpenAI-compatible but needs custom base URL
         "handler": "openai_compatible_handler",
         "base_url": "http://localhost:11434/v1",
+        "base_url_env_var": "OLLAMA_BASE_URL",
         "api_key": "not-needed",
         "profile": {
             "json_schema_transformer": InlineDefsJsonSchemaTransformer,
             "openai_supports_strict_tool_definition": False
         }
+    },
+    "local": {
+        # Local OpenAI-compatible Responses API endpoint
+        "handler": "openai_compatible_handler",
+        "base_url": "http://127.0.0.1:1234/v1",
+        "base_url_env_var": "LOCAL_OPENAI_BASE_URL",
+        "api_key": "not-needed",
+        "profile": {
+            "json_schema_transformer": InlineDefsJsonSchemaTransformer,
+            "openai_supports_strict_tool_definition": False,
+        },
     },
     "perplexity": {
         # Perplexity is OpenAI-compatible with custom base URL
@@ -171,8 +183,15 @@ def handle_openai_compatible(
     openai_kwargs = {}
     
     # Set base URL
-    if "base_url" in config:
-        openai_kwargs["base_url"] = provider_kwargs.get("base_url", config["base_url"])
+    base_url = provider_kwargs.get("base_url")
+    if base_url is None:
+        base_url_env_var = config.get("base_url_env_var")
+        if isinstance(base_url_env_var, str) and base_url_env_var:
+            base_url = os.getenv(base_url_env_var)
+    if base_url is None and "base_url" in config:
+        base_url = config["base_url"]
+    if base_url:
+        openai_kwargs["base_url"] = base_url
     
     # Handle API key
     if "api_key" in config:
