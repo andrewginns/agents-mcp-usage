@@ -25,22 +25,20 @@ Tracing is done through Pydantic Logfire.
 
 # Quickstart
 
-`cp .env.example .env`
-- Add `GEMINI_API_KEY` and/or `OPENAI_API_KEY`
-  - Individual scripts can be adjusted to use models from any provider supported by the specific framework
-    - By default only [basic_mcp_use/oai-agent_mcp.py](agents_mcp_usage/basic_mcp/basic_mcp_use/oai-agent_mcp.py) requires `OPENAI_API_KEY`
-    - All other scripts require `GEMINI_API_KEY` (Free tier key can be created at https://aistudio.google.com/apikey)
-- [Optional] Add `LOGFIRE_TOKEN` to visualise evaluations in Logfire web ui
+1. `cp .env.example .env`
+  - Add `GEMINI_API_KEY` and/or `OPENAI_API_KEY`
+    - Individual scripts can be adjusted to use models from any provider supported by the specific framework
+  - [Optional] Add `LOGFIRE_TOKEN` to visualise evaluations in Logfire web ui
 
-Run an Agent framework script e.g.:
-- `uv run agents_mcp_usage/basic_mcp/basic_mcp_use/pydantic_mcp.py`
-  - Requires `GEMINI_API_KEY` by default
+2. Test an Agent framework script e.g.:
+  - `uv run agents_mcp_usage/basic_mcp/basic_mcp_use/pydantic_mcp.py`
+    - Requires `GEMINI_API_KEY` by default
 
-- `uv run agents_mcp_usage/basic_mcp/basic_mcp_use/oai-agent_mcp.py`
-  - Requires `OPENAI_API_KEY` by default
+  - `uv run agents_mcp_usage/basic_mcp/basic_mcp_use/oai-agent_mcp.py`
+    - Requires `OPENAI_API_KEY` by default
 
-- Launch the ADK web UI for visual interaction with the agents:
-  - `make adk_basic_ui`
+3.  Run Dockerised single-model benchmark (isolated dependencies)
+  - `make benchmark MODEL="openai:gpt-5.2 (none)" RUNS=5 PARALLEL=1`
   
 Check console, Logfire, or the ADK web UI for output
 

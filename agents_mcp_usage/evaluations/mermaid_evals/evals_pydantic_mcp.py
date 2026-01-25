@@ -263,6 +263,44 @@ async def exponential_backoff_retry(
 # ============================================================================
 
 
+MCP_INIT_TIMEOUT_ENV_VAR = "MERBENCH_MCP_INIT_TIMEOUT"
+MCP_INIT_TIMEOUT_DEFAULT_SECONDS = 60.0
+
+
+def _get_mcp_init_timeout_seconds() -> float:
+    """Return the MCP server initialization timeout in seconds.
+
+    MCPServerStdio defaults to a 5s initialization timeout. In Docker, using
+    `uv run` can trigger a full environment sync on the bind mount which
+    easily exceeds that budget. We use a higher default and allow overrides.
+    """
+    raw_value = os.getenv(MCP_INIT_TIMEOUT_ENV_VAR, "").strip()
+    if not raw_value:
+        return MCP_INIT_TIMEOUT_DEFAULT_SECONDS
+
+    try:
+        parsed = float(raw_value)
+    except ValueError:
+        logfire.warning(
+            "Invalid MCP init timeout; using default",
+            env_var=MCP_INIT_TIMEOUT_ENV_VAR,
+            raw_value=raw_value,
+            default_seconds=MCP_INIT_TIMEOUT_DEFAULT_SECONDS,
+        )
+        return MCP_INIT_TIMEOUT_DEFAULT_SECONDS
+
+    if parsed <= 0:
+        logfire.warning(
+            "Non-positive MCP init timeout; using default",
+            env_var=MCP_INIT_TIMEOUT_ENV_VAR,
+            parsed_seconds=parsed,
+            default_seconds=MCP_INIT_TIMEOUT_DEFAULT_SECONDS,
+        )
+        return MCP_INIT_TIMEOUT_DEFAULT_SECONDS
+
+    return parsed
+
+
 def get_mcp_servers() -> List[MCPServerStdio]:
     """Gets the configured MCP servers for the evaluation.
 
@@ -272,20 +310,24 @@ def get_mcp_servers() -> List[MCPServerStdio]:
     Returns:
         A list of configured MCP servers.
     """
+    mcp_init_timeout = _get_mcp_init_timeout_seconds()
+
     local_server = MCPServerStdio(
-        command="uv",
+        # Use the current interpreter instead of `uv run` to avoid Docker
+        # bind-mount side effects (recreating `.venv`) and slow startups.
+        command=sys.executable,
         args=[
-            "run",
             str(get_mcp_server_path("example_server.py")),
             "stdio",
         ],
+        timeout=mcp_init_timeout,
     )
     mermaid_server = MCPServerStdio(
-        command="uv",
+        command=sys.executable,
         args=[
-            "run",
             str(get_mcp_server_path("mermaid_validator.py")),
         ],
+        timeout=mcp_init_timeout,
     )
     return [local_server, mermaid_server]
 
